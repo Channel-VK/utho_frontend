@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Header } from './components/layout/Header';
 import type { ActiveTab } from './components/layout/Header';
-import { LiveCostBar } from './components/layout/LiveCostBar';
 import { RemediationModal } from './components/common/RemediationModal';
 import { DashboardView } from './views/DashboardView';
+import type { ResourceCategoryTab } from './views/DashboardView';
 import { InventoryView } from './views/InventoryView';
 import { ResourceDetailModal } from './views/ResourceDetailModal';
 import { RecommendationsView } from './views/RecommendationsView';
@@ -24,6 +24,7 @@ import type {
 
 export function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
+  const [resourceCategory, setResourceCategory] = useState<ResourceCategoryTab>('ALL');
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [isAIConnected, setIsAIConnected] = useState<boolean>(false);
   const [isCheckingConnection, setIsCheckingConnection] = useState<boolean>(false);
@@ -35,7 +36,7 @@ export function App() {
   const [alerts, setAlerts] = useState<AnomalyAlert[]>([]);
   const [assumptions, setAssumptions] = useState<AssumptionsResponse | null>(null);
 
-  // Inspector & Modal States
+  // Inspector Drawer & Modal States
   const [selectedResourceId, setSelectedResourceId] = useState<string | null>(null);
   const [selectedResourceDetail, setSelectedResourceDetail] = useState<ResourceDetail | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState<boolean>(false);
@@ -47,7 +48,6 @@ export function App() {
   const [exportData, setExportData] = useState<RemediationExport | null>(null);
   const [isExportLoading, setIsExportLoading] = useState<boolean>(false);
 
-  // Manual Check Backend Connection (:8080 & :8001)
   const checkConnection = useCallback(async () => {
     setIsCheckingConnection(true);
     try {
@@ -102,6 +102,18 @@ export function App() {
           if (typeof dash.ai_engine_connected === 'boolean') {
             setIsAIConnected(dash.ai_engine_connected);
           }
+
+          // Pre-populate the right-hand Resource Inspection Drawer on Screen 1
+          const firstFlagged =
+            resList.find((r) => r.optimization_status === 'OVERPROVISIONED') || resList[0];
+          if (firstFlagged) {
+            setSelectedResourceId(firstFlagged.id);
+            apiClient.getResource(firstFlagged.id).then((detail) => {
+              if (mounted && detail) {
+                setSelectedResourceDetail(detail);
+              }
+            });
+          }
         }
       } catch (err) {
         console.error('Failed to initialize FinOps data:', err);
@@ -114,21 +126,20 @@ export function App() {
     };
   }, []);
 
-  // Open resource drilldown
-  const handleSelectResource = async (id: string) => {
+  // Select resource for either inline drawer or full 30-day modal
+  const handleSelectResource = async (id: string, openFullModal = true) => {
     setSelectedResourceId(id);
+    if (openFullModal) {
+      setIsDetailModalOpen(true);
+    }
     const detail = await apiClient.getResource(id);
     if (detail) {
       setSelectedResourceDetail(detail);
-      setIsDetailModalOpen(true);
     }
   };
 
-  // Close resource drilldown
   const handleCloseDetailModal = () => {
     setIsDetailModalOpen(false);
-    setSelectedResourceId(null);
-    setSelectedResourceDetail(null);
   };
 
   // Handle Accept Recommendation
@@ -138,7 +149,7 @@ export function App() {
 
     if (selectedResourceId) {
       const updatedDetail = await apiClient.getResource(selectedResourceId);
-      setSelectedResourceDetail(updatedDetail);
+      if (updatedDetail) setSelectedResourceDetail(updatedDetail);
     }
   };
 
@@ -149,7 +160,7 @@ export function App() {
 
     if (selectedResourceId) {
       const updatedDetail = await apiClient.getResource(selectedResourceId);
-      setSelectedResourceDetail(updatedDetail);
+      if (updatedDetail) setSelectedResourceDetail(updatedDetail);
     }
   };
 
@@ -160,11 +171,11 @@ export function App() {
 
     if (selectedResourceId) {
       const updatedDetail = await apiClient.getResource(selectedResourceId);
-      setSelectedResourceDetail(updatedDetail);
+      if (updatedDetail) setSelectedResourceDetail(updatedDetail);
     }
   };
 
-  // Accept Category from Monday Runbook Strip
+  // Accept Category from Priority Optimization Cards
   const handleAcceptCategory = async (category: 'orphan' | 'off_hours' | 'rightsize') => {
     if (!recommendationsData?.items) return;
 
@@ -183,10 +194,16 @@ export function App() {
           r.action_type === 'OFF_HOURS_SHUTDOWN'
         );
       }
-      return r.action_type === 'RIGHTSIZE_VM';
+      return (
+        r.action_type === 'RIGHTSIZE_VM' ||
+        r.action_type === 'TERMINATE_ZOMBIE' ||
+        r.action_type === 'TERMINATE_ZOMBIE_VM'
+      );
     });
 
-    await Promise.all(itemsToAccept.map((item) => apiClient.patchRecommendation(item.id, 'accepted')));
+    await Promise.all(
+      itemsToAccept.map((item) => apiClient.patchRecommendation(item.id, 'accepted'))
+    );
     await refreshDashboardAndRecs();
   };
 
@@ -203,11 +220,13 @@ export function App() {
   };
 
   // What-If Simulation runner
-  const handleRunSimulation = useCallback(async (params: SimulationParams): Promise<SimulationResult> => {
-    return apiClient.simulate(params);
-  }, []);
+  const handleRunSimulation = useCallback(
+    async (params: SimulationParams): Promise<SimulationResult> => {
+      return apiClient.simulate(params);
+    },
+    []
+  );
 
-  // Navigation shortcuts
   const handleNavigateToInventoryWithFilter = (status?: string) => {
     setInventoryStatusFilter(status || 'ALL');
     setActiveTab('inventory');
@@ -224,8 +243,8 @@ export function App() {
     ).length || 0;
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col font-sans">
-      {/* Layout Row 1: Main Navbar (h-14, single line, no clipping) */}
+    <div className="min-h-screen text-[#111318] flex font-sans">
+      {/* Left Persistent Sidebar + Top Sticky Context Bar (Stitch FinSort 1:1) */}
       <Header
         activeTab={activeTab}
         onTabChange={(tab) => {
@@ -233,74 +252,82 @@ export function App() {
           if (tab !== 'recommendations') setRecommendationsActionFilter('ALL');
           setActiveTab(tab);
         }}
+        onQuickCategorySelect={(cat) => setResourceCategory(cat)}
+        activeResourceCategory={resourceCategory}
         isConnected={isConnected}
         isAIConnected={isAIConnected}
         isChecking={isCheckingConnection}
         onCheckConnection={checkConnection}
         activeAlertsCount={alerts.length}
         pendingRecsCount={recommendationsData?.summary.pending_count || 0}
+        pendingLowRiskCount={pendingLowRiskCount}
+        onBulkAcceptLowRisk={handleBulkAcceptLowRisk}
+        onOpenExportModal={handleOpenExportModal}
       />
 
-      {/* Layout Row 2: Sticky Impact Bar (h-12, single line, justify-between) */}
-      {dashboardData && recommendationsData && (
-        <LiveCostBar
-          currentMonthlyInr={dashboardData.current_monthly_spend_inr}
-          projectedMonthlyInr={dashboardData.projected_monthly_spend_inr}
-          acceptedSavingsInr={dashboardData.accepted_monthly_savings_inr}
-          acceptedSavingsPct={dashboardData.accepted_savings_pct}
-          acceptedCount={recommendationsData.summary.accepted_count}
-          pendingLowRiskCount={pendingLowRiskCount}
-          onBulkAcceptLowRisk={handleBulkAcceptLowRisk}
-          onOpenExportModal={handleOpenExportModal}
-        />
-      )}
+      {/* Main Content Shell (pl-64 for sidebar, pt-14 for sticky top bar) */}
+      <div className="pl-64 flex-1 flex flex-col min-w-0">
+        <main className="relative flex-1 w-full pt-18 px-6 max-w-[1600px] mx-auto">
+          {activeTab === 'dashboard' && dashboardData && (
+            <DashboardView
+              data={dashboardData}
+              resources={resources}
+              recommendations={recommendationsData?.items || []}
+              selectedResourceDetail={selectedResourceDetail}
+              externalCategory={resourceCategory}
+              onCategoryChange={setResourceCategory}
+              onSelectResourceForDrawer={(id, openModal) =>
+                handleSelectResource(id, Boolean(openModal))
+              }
+              onAcceptRecommendation={handleAcceptRecommendation}
+              onNavigateToInventory={handleNavigateToInventoryWithFilter}
+              onNavigateToRecommendations={handleNavigateToRecommendationsWithAction}
+              onNavigateToAlerts={() => setActiveTab('simulator')}
+              onAcceptCategory={handleAcceptCategory}
+              onOpenExportModal={handleOpenExportModal}
+            />
+          )}
 
-      {/* Main View Port Container */}
-      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 py-6">
-        {activeTab === 'dashboard' && dashboardData && (
-          <DashboardView
-            data={dashboardData}
-            recommendations={recommendationsData?.items || []}
-            onNavigateToInventory={handleNavigateToInventoryWithFilter}
-            onNavigateToRecommendations={handleNavigateToRecommendationsWithAction}
-            onNavigateToAlerts={() => setActiveTab('simulator')}
-            onAcceptCategory={handleAcceptCategory}
-          />
-        )}
+          {activeTab === 'simulator' && (
+            <SimulatorAndAlertsView
+              alerts={alerts}
+              baselineMonthlyInr={dashboardData?.current_monthly_spend_inr}
+              onSimulate={handleRunSimulation}
+              onInspectResource={(id) => handleSelectResource(id, true)}
+              onOpenExportModal={handleOpenExportModal}
+            />
+          )}
 
-        {activeTab === 'inventory' && (
-          <InventoryView
-            resources={resources}
-            selectedStatusFilter={inventoryStatusFilter}
-            onSelectResource={handleSelectResource}
-          />
-        )}
+          {activeTab === 'recommendations' && recommendationsData && (
+            <RecommendationsView
+              recommendations={recommendationsData.items}
+              summary={recommendationsData.summary}
+              dashboardData={dashboardData}
+              assumptions={assumptions}
+              resources={resources}
+              initialFilterAction={recommendationsActionFilter}
+              onAccept={handleAcceptRecommendation}
+              onReject={handleRejectRecommendation}
+              onBulkAcceptLowRisk={handleBulkAcceptLowRisk}
+              onAcceptCategory={handleAcceptCategory}
+              onOpenExportModal={handleOpenExportModal}
+              onSelectResource={(id) => handleSelectResource(id, true)}
+            />
+          )}
 
-        {activeTab === 'recommendations' && recommendationsData && (
-          <RecommendationsView
-            recommendations={recommendationsData.items}
-            summary={recommendationsData.summary}
-            initialFilterAction={recommendationsActionFilter}
-            onAccept={handleAcceptRecommendation}
-            onReject={handleRejectRecommendation}
-            onBulkAcceptLowRisk={handleBulkAcceptLowRisk}
-            onAcceptCategory={handleAcceptCategory}
-            onOpenExportModal={handleOpenExportModal}
-          />
-        )}
+          {activeTab === 'inventory' && (
+            <InventoryView
+              resources={resources}
+              selectedStatusFilter={inventoryStatusFilter}
+              onSelectResource={(id) => handleSelectResource(id, true)}
+            />
+          )}
 
-        {activeTab === 'simulator' && (
-          <SimulatorAndAlertsView
-            alerts={alerts}
-            onSimulate={handleRunSimulation}
-            onInspectResource={handleSelectResource}
-          />
-        )}
-
-        {activeTab === 'assumptions' && assumptions && (
-          <AssumptionsView assumptions={assumptions} />
-        )}
-      </main>
+          {activeTab === 'assumptions' && assumptions && (
+            <AssumptionsView assumptions={assumptions} />
+          )}
+        </main>
+      </div>
 
       {/* 30-Day Resource Detail Inspector Modal */}
       <ResourceDetailModal
@@ -318,11 +345,6 @@ export function App() {
         exportData={exportData}
         isLoading={isExportLoading}
       />
-
-      {/* Footer */}
-      <footer className="border-t border-zinc-900 bg-zinc-950 py-4 px-6 text-center text-xs text-zinc-500 font-mono">
-        SmartCloud Optimizer • FinOps Engineering Platform for Utho Cloud • Latency SLA Safe Rightsizing Engine
-      </footer>
     </div>
   );
 }

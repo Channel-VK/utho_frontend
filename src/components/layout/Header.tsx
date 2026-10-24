@@ -1,157 +1,355 @@
 import React from 'react';
-import {
-  ShieldCheck,
-  Activity,
-  Server,
-  Terminal,
-  Sliders,
-  FileSpreadsheet,
-  RefreshCw,
-} from 'lucide-react';
 
-export type ActiveTab = 'dashboard' | 'inventory' | 'recommendations' | 'simulator' | 'assumptions';
+export type ActiveTab =
+  | 'dashboard'
+  | 'simulator'
+  | 'recommendations'
+  | 'inventory'
+  | 'assumptions';
 
 interface HeaderProps {
   activeTab: ActiveTab;
   onTabChange: (tab: ActiveTab) => void;
+  onQuickCategorySelect?: (category: 'ALL' | 'FLAGGED' | 'COMPUTE' | 'STORAGE' | 'PROTECTED') => void;
+  activeResourceCategory?: string;
   isConnected: boolean;
   isAIConnected?: boolean;
   isChecking: boolean;
   onCheckConnection: () => void;
   activeAlertsCount: number;
   pendingRecsCount: number;
+  pendingLowRiskCount?: number;
+  onBulkAcceptLowRisk?: () => void;
+  onOpenExportModal?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   activeTab,
   onTabChange,
+  onQuickCategorySelect,
+  activeResourceCategory = 'ALL',
   isConnected,
   isAIConnected = false,
   isChecking,
   onCheckConnection,
   activeAlertsCount,
   pendingRecsCount,
+  pendingLowRiskCount = 0,
+  onBulkAcceptLowRisk,
+  onOpenExportModal,
 }) => {
-  const tabs = [
-    { id: 'dashboard' as const, label: 'Overview', icon: Activity },
-    { id: 'inventory' as const, label: 'Inventory', icon: Server },
-    {
-      id: 'recommendations' as const,
-      label: `Action Plan (${pendingRecsCount > 0 ? pendingRecsCount : 28})`,
-      icon: Terminal,
-      highlight: pendingRecsCount > 0,
-    },
-    {
-      id: 'simulator' as const,
-      label: `Simulator & Alerts (${activeAlertsCount > 0 ? activeAlertsCount : 3})`,
-      icon: Sliders,
-    },
-    { id: 'assumptions' as const, label: 'Pricing & Math', icon: FileSpreadsheet },
-  ];
+  const screenTitle =
+    activeTab === 'dashboard'
+      ? 'Cloud Spending & Server Usage'
+      : activeTab === 'simulator'
+      ? 'Simulator & Alerts'
+      : activeTab === 'recommendations'
+      ? 'Recommendations & Pricing'
+      : activeTab === 'inventory'
+      ? 'Full Fleet Inventory (85 Resources)'
+      : 'Optimization Governance & Pricing Math';
+
+  const isSpendingAll =
+    activeTab === 'dashboard' &&
+    activeResourceCategory !== 'COMPUTE' &&
+    activeResourceCategory !== 'STORAGE';
+  const isComputeActive = activeTab === 'dashboard' && activeResourceCategory === 'COMPUTE';
+  const isStorageActive = activeTab === 'dashboard' && activeResourceCategory === 'STORAGE';
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-zinc-800 bg-zinc-950/95 backdrop-blur-md">
-      <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6">
-        {/* Left: Clean Logo + Title */}
-        <div
-          onClick={() => onTabChange('dashboard')}
-          className="flex items-center space-x-2.5 cursor-pointer shrink-0 mr-4"
-        >
-          <div className="flex h-7 w-7 items-center justify-center rounded-md border border-emerald-500/30 bg-emerald-950/40 text-emerald-400">
-            <ShieldCheck className="h-4 w-4" />
-          </div>
-          <div className="flex items-baseline space-x-2">
-            <span className="text-sm font-semibold tracking-tight text-zinc-100">SmartCloud</span>
-            <span className="text-[10px] uppercase font-mono font-medium text-emerald-400/90 border border-emerald-500/20 bg-emerald-950/30 px-1.5 py-0.2 rounded">
-              FinOps
-            </span>
-          </div>
-        </div>
-
-        {/* Center: 5 Clean Single-Line Navigation Tabs (Linear style, never wrap) */}
-        <nav className="flex items-center space-x-1 overflow-x-auto whitespace-nowrap scrollbar-none py-1">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => onTabChange(tab.id)}
-                className={`flex items-center space-x-2 rounded-md px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap shrink-0 ${
-                  isActive
-                    ? 'border border-zinc-700 bg-zinc-850 bg-zinc-900 text-zinc-100 shadow-xs'
-                    : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200'
-                }`}
-              >
-                <Icon className={`h-3.5 w-3.5 ${isActive ? 'text-emerald-400' : 'text-zinc-400'}`} />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
-        </nav>
-
-        {/* Right: Compact Connected status indicator (Go :8080 • AI :8001) */}
-        <div className="flex items-center space-x-2 shrink-0 ml-4">
+    <>
+      {/* LEFT PERSISTENT GLASS SIDEBAR */}
+      <aside className="fixed left-0 top-0 h-full w-64 bg-white/75 backdrop-blur-2xl border-r border-black/[0.07] z-50 flex flex-col justify-between shadow-[0_1px_12px_rgba(17,19,24,0.03)]">
+        <div className="flex flex-col flex-1 overflow-y-auto">
+          {/* App Brand */}
           <div
-            className={`flex items-center space-x-2 rounded-md border px-2.5 py-1 text-xs font-mono transition-colors whitespace-nowrap ${
-              isConnected && isAIConnected
-                ? 'border-emerald-500/30 bg-emerald-950/30 text-emerald-400'
-                : isConnected
-                ? 'border-emerald-500/20 bg-zinc-900/90 text-emerald-300'
-                : 'border-zinc-800 bg-zinc-900/90 text-zinc-400'
-            }`}
+            onClick={() => {
+              onQuickCategorySelect?.('ALL');
+              onTabChange('dashboard');
+            }}
+            className="h-16 px-6 flex items-center justify-between border-b border-black/[0.06] cursor-pointer"
           >
-            {/* Go :8080 Dot */}
-            <span className="flex items-center space-x-1.5">
-              <span className="relative flex h-2 w-2">
-                {isConnected && (
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-                )}
-                <span
-                  className={`relative inline-flex h-2 w-2 rounded-full ${
-                    isConnected ? 'bg-emerald-500' : 'bg-amber-500'
-                  }`}
-                ></span>
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-[#111318] flex items-center justify-center font-bold text-white text-xs tracking-wider shadow-xs">
+                CO
+              </div>
+              <span className="font-semibold text-[16px] text-[#111318] tracking-tight">
+                CloudOpt
               </span>
-              <span className="text-[11px] font-medium">
-                {isConnected ? 'Go :8080' : 'Local :8080'}
-              </span>
-            </span>
-
-            <span className="text-zinc-600">•</span>
-
-            {/* Python AI :8001 Dot */}
-            <span className="flex items-center space-x-1.5">
-              <span className="relative flex h-2 w-2">
-                {isAIConnected && (
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-                )}
-                <span
-                  className={`relative inline-flex h-2 w-2 rounded-full ${
-                    isAIConnected ? 'bg-emerald-500' : 'bg-amber-500'
-                  }`}
-                ></span>
-              </span>
-              <span
-                className={`text-[11px] font-medium ${
-                  isAIConnected ? 'text-emerald-400' : 'text-zinc-400'
-                }`}
-              >
-                AI :8001
-              </span>
+            </div>
+            <span className="text-[10px] uppercase font-mono font-semibold tracking-widest text-[#4A505C] glass-pill-neutral px-2 py-0.5 rounded-md">
+              FinSort
             </span>
           </div>
 
-          <button
-            onClick={onCheckConnection}
-            disabled={isChecking}
-            title="Ping Go API (:8080) & Python AI Engine (:8001)"
-            className="flex h-7 w-7 items-center justify-center rounded-md border border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700 hover:bg-zinc-800 hover:text-zinc-200 transition-colors disabled:opacity-50"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${isChecking ? 'animate-spin text-emerald-400' : ''}`} />
-          </button>
+          {/* Workspace Switcher */}
+          <div className="p-4">
+            <div
+              onClick={() => onTabChange('recommendations')}
+              className="p-3 rounded-xl glass-well hover:bg-black/[0.05] transition-colors cursor-pointer"
+            >
+              <div className="text-[10px] uppercase tracking-wider font-semibold text-[#767D8C]">
+                Workspace
+              </div>
+              <div className="flex items-center justify-between mt-1">
+                <span className="text-xs font-semibold text-[#111318]">
+                  Engineering &amp; Finance
+                </span>
+                <span className="text-[10px] text-[#4A505C] font-mono font-semibold bg-white/80 px-1.5 py-0.5 rounded border border-black/[0.07]">
+                  INR
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Section Label */}
+          <div className="px-6 pb-2 pt-1">
+            <span className="text-[10px] font-semibold uppercase tracking-widest text-[#767D8C]">
+              Platform Navigation
+            </span>
+          </div>
+
+          {/* Navigation Links (Minimalist Monochrome + Blended Status Pills) */}
+          <nav className="flex-1 px-3 space-y-1">
+            <button
+              type="button"
+              onClick={() => {
+                onQuickCategorySelect?.('ALL');
+                onTabChange('dashboard');
+              }}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs transition-all ${
+                isSpendingAll
+                  ? 'font-semibold text-white bg-[#111318] shadow-xs'
+                  : 'font-medium text-[#4A505C] hover:text-[#111318] hover:bg-black/[0.04]'
+              }`}
+            >
+              <span>Cloud Spending</span>
+              <span
+                className={`text-[10px] font-mono px-2 py-0.5 rounded-md font-semibold ${
+                  isSpendingAll
+                    ? 'bg-white/15 text-white'
+                    : 'status-green'
+                }`}
+              >
+                ₹ Live
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onTabChange('simulator')}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs transition-all ${
+                activeTab === 'simulator'
+                  ? 'font-semibold text-white bg-[#111318] shadow-xs'
+                  : 'font-medium text-[#4A505C] hover:text-[#111318] hover:bg-black/[0.04]'
+              }`}
+            >
+              <span>Simulator &amp; Alerts</span>
+              <span
+                className={`text-[10px] font-mono px-2 py-0.5 rounded-md font-semibold ${
+                  activeTab === 'simulator'
+                    ? 'bg-white/15 text-white'
+                    : activeAlertsCount > 0
+                    ? 'status-red'
+                    : 'status-green'
+                }`}
+              >
+                {activeAlertsCount > 0 ? `${activeAlertsCount} Active` : 'Nominal'}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onTabChange('recommendations')}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs transition-all ${
+                activeTab === 'recommendations'
+                  ? 'font-semibold text-white bg-[#111318] shadow-xs'
+                  : 'font-medium text-[#4A505C] hover:text-[#111318] hover:bg-black/[0.04]'
+              }`}
+            >
+              <span>Recommendations &amp; Pricing</span>
+              <span
+                className={`text-[10px] font-mono px-2 py-0.5 rounded-md font-semibold ${
+                  activeTab === 'recommendations'
+                    ? 'bg-white/15 text-white'
+                    : pendingRecsCount > 0
+                    ? 'status-yellow'
+                    : 'status-green'
+                }`}
+              >
+                {pendingRecsCount} Pending
+              </span>
+            </button>
+
+            <div className="px-3 pt-4 pb-1">
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-[#767D8C]">
+                Fleet Views &amp; Filters
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                onQuickCategorySelect?.('COMPUTE');
+                onTabChange('dashboard');
+              }}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all ${
+                isComputeActive
+                  ? 'font-semibold text-white bg-[#111318] shadow-xs'
+                  : 'font-medium text-[#4A505C] hover:text-[#111318] hover:bg-black/[0.04]'
+              }`}
+            >
+              <span>Compute Instances</span>
+              <span
+                className={`text-[10px] font-mono px-2 py-0.5 rounded-md font-medium ${
+                  isComputeActive ? 'bg-white/15 text-white' : 'glass-pill-neutral'
+                }`}
+              >
+                VM Fleet
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                onQuickCategorySelect?.('STORAGE');
+                onTabChange('dashboard');
+              }}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all ${
+                isStorageActive
+                  ? 'font-semibold text-white bg-[#111318] shadow-xs'
+                  : 'font-medium text-[#4A505C] hover:text-[#111318] hover:bg-black/[0.04]'
+              }`}
+            >
+              <span>Storage &amp; Volumes</span>
+              <span
+                className={`text-[10px] font-mono px-2 py-0.5 rounded-md font-medium ${
+                  isStorageActive ? 'bg-white/15 text-white' : 'glass-pill-neutral'
+                }`}
+              >
+                SSD &amp; IP
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onTabChange('inventory')}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all ${
+                activeTab === 'inventory'
+                  ? 'font-semibold text-white bg-[#111318] shadow-xs'
+                  : 'font-medium text-[#4A505C] hover:text-[#111318] hover:bg-black/[0.04]'
+              }`}
+            >
+              <span>Full Fleet Matrix</span>
+              <span
+                className={`text-[10px] font-mono px-2 py-0.5 rounded-md font-medium ${
+                  activeTab === 'inventory' ? 'bg-white/15 text-white' : 'glass-pill-neutral'
+                }`}
+              >
+                85 Nodes
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onTabChange('assumptions')}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all ${
+                activeTab === 'assumptions'
+                  ? 'font-semibold text-white bg-[#111318] shadow-xs'
+                  : 'font-medium text-[#4A505C] hover:text-[#111318] hover:bg-black/[0.04]'
+              }`}
+            >
+              <span>Governance &amp; Math</span>
+              <span
+                className={`text-[10px] font-mono px-2 py-0.5 rounded-md font-medium ${
+                  activeTab === 'assumptions' ? 'bg-white/15 text-white' : 'glass-pill-neutral'
+                }`}
+              >
+                Formulas
+              </span>
+            </button>
+          </nav>
         </div>
-      </div>
-    </header>
+
+        {/* Service Telemetry & User Profile Footer */}
+        <div className="p-4 border-t border-black/[0.06] bg-white/40 space-y-2.5">
+          {/* Blended Status Pills for Live Backend Services */}
+          <div className="grid grid-cols-2 gap-1.5">
+            <button
+              type="button"
+              onClick={onCheckConnection}
+              disabled={isChecking}
+              className={`py-1.5 px-2 rounded-lg text-[10px] font-mono font-semibold uppercase tracking-wider text-center transition-all ${
+                isConnected ? 'status-green' : 'status-yellow'
+              }`}
+            >
+              {isConnected ? 'Go :8080 Live' : 'Go :8080 Sync'}
+            </button>
+            <button
+              type="button"
+              onClick={onCheckConnection}
+              disabled={isChecking}
+              className={`py-1.5 px-2 rounded-lg text-[10px] font-mono font-semibold uppercase tracking-wider text-center transition-all ${
+                isAIConnected ? 'status-green' : 'status-yellow'
+              }`}
+            >
+              {isAIConnected ? 'AI :8001 Live' : 'AI :8001 Sync'}
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/75 border border-black/[0.06]">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-full bg-[#111318] text-white flex items-center justify-center text-[11px] font-semibold font-mono">
+                AR
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xs font-semibold text-[#111318]">Alex Rivera</span>
+                <span className="text-[10px] text-[#767D8C] font-mono">Lead DevSecOps</span>
+              </div>
+            </div>
+            <span className="text-[10px] font-mono font-semibold status-green px-2 py-0.5 rounded-md">
+              Online
+            </span>
+          </div>
+        </div>
+      </aside>
+
+      {/* TOP STICKY GLASS CONTEXT BAR */}
+      <header className="fixed top-0 left-64 right-0 h-14 bg-white/72 backdrop-blur-2xl border-b border-black/[0.07] z-40 px-6 flex items-center justify-between">
+        <div className="flex items-center gap-3 min-w-0">
+          <h1 className="text-[15px] font-semibold text-[#111318] tracking-tight truncate">
+            {screenTitle}
+          </h1>
+          <span className="px-2.5 py-0.5 rounded-md status-green text-[11px] font-mono font-semibold uppercase tracking-wider shrink-0">
+            Telemetry Synced
+          </span>
+          <span className="hidden md:inline-flex px-2.5 py-0.5 rounded-md glass-pill-neutral text-[11px] font-mono font-medium shrink-0">
+            in-mumbai-1 · in-bangalore-1 · in-noida-1
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          {pendingLowRiskCount > 0 && onBulkAcceptLowRisk && (
+            <button
+              type="button"
+              onClick={onBulkAcceptLowRisk}
+              className="px-3.5 py-1.5 rounded-xl status-green hover:bg-[#236B52]/18 text-xs font-semibold transition-all"
+            >
+              Approve Low-Risk ({pendingLowRiskCount})
+            </button>
+          )}
+
+          {onOpenExportModal && (
+            <button
+              type="button"
+              onClick={onOpenExportModal}
+              className="px-3.5 py-1.5 rounded-xl bg-[#111318] hover:bg-[#232730] text-white text-xs font-semibold transition-all shadow-xs"
+            >
+              Export Terraform &amp; CLI
+            </button>
+          )}
+        </div>
+      </header>
+    </>
   );
 };

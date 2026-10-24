@@ -1,18 +1,5 @@
 import React, { useState } from 'react';
 import {
-  X,
-  ShieldCheck,
-  Server,
-  HardDrive,
-  Globe,
-  Check,
-  Terminal,
-  Cpu,
-  Copy,
-  AlertTriangle,
-  Leaf,
-} from 'lucide-react';
-import {
   ResponsiveContainer,
   LineChart,
   Line,
@@ -46,20 +33,16 @@ export const ResourceDetailModal: React.FC<ResourceDetailModalProps> = ({
 
   if (!isOpen || !resource) return null;
 
-  const TypeIcon =
-    resource.type === 'vm'
-      ? Server
-      : resource.type === 'volume' || resource.type === 'block_volume' || resource.type === 'block_ssd'
-      ? HardDrive
-      : Globe;
-
   const isProtectedPeak = resource.optimization_status === 'PROTECTED_PEAK_LOAD';
   const rec = resource.recommendation;
   const eng = resource.engineering_analysis || {};
 
-  const planName = resource.plan || (resource.current_spec ? resource.current_spec.split(' ')[0] : 'Standard');
+  const planName =
+    resource.plan || (resource.current_spec ? resource.current_spec.split(' ')[0] : 'Standard');
   const vcpuText =
-    resource.vcpu !== undefined ? `${resource.vcpu} vCPU · ${resource.ram_gb} GB RAM` : resource.current_spec || '';
+    resource.vcpu !== undefined
+      ? `${resource.vcpu} vCPU · ${resource.ram_gb} GB RAM`
+      : resource.current_spec || '';
 
   const proofText =
     eng.peak_headroom_proof ||
@@ -97,54 +80,53 @@ export const ResourceDetailModal: React.FC<ResourceDetailModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-      <div className="relative flex max-h-[92vh] w-full max-w-5xl flex-col rounded-lg border border-zinc-800 bg-zinc-900 shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#111318]/35 backdrop-blur-md p-4">
+      <div className="relative flex max-h-[92vh] w-full max-w-5xl flex-col rounded-2xl glass-card shadow-2xl overflow-hidden bg-white/90">
         {/* Header Ribbon */}
-        <div className="flex items-center justify-between border-b border-zinc-800 px-6 py-4 bg-zinc-950/80">
-          <div className="flex items-center space-x-3">
-            <div
-              className={`flex h-9 w-9 items-center justify-center rounded-md border ${
-                isProtectedPeak
-                  ? 'border-cyan-500/40 bg-cyan-950/40 text-cyan-400'
-                  : 'border-zinc-700 bg-zinc-800 text-zinc-300'
-              }`}
-            >
-              {isProtectedPeak ? <ShieldCheck className="h-5 w-5" /> : <TypeIcon className="h-5 w-5" />}
-            </div>
-            <div>
-              <div className="flex items-center space-x-2">
-                <h2 className="text-base font-semibold text-zinc-100">{resource.name}</h2>
-                <span className="font-mono text-xs text-zinc-500">({resource.id})</span>
-                <span className="rounded bg-zinc-800 px-2 py-0.5 text-[10px] font-mono uppercase text-zinc-300">
-                  {resource.env}
+        <div className="flex items-center justify-between border-b border-black/[0.06] px-6 py-4 bg-white/60">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-base font-bold text-[#111318]">{resource.name}</h2>
+              <span className="font-mono text-xs text-[#68707E]">({resource.id})</span>
+              <span className="rounded-md glass-pill-neutral px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider">
+                {resource.env}
+              </span>
+              <span className="rounded-md glass-pill-neutral px-2.5 py-0.5 text-[11px] font-mono font-semibold">
+                {resource.region}
+              </span>
+              {isProtectedPeak && (
+                <span className="rounded-md status-yellow px-2.5 py-0.5 text-[11px] font-semibold uppercase">
+                  Peak Protected
                 </span>
-                <span className="rounded bg-zinc-800 px-2 py-0.5 text-[10px] font-mono text-zinc-400">
-                  {resource.region}
-                </span>
-              </div>
-              <p className="text-xs text-zinc-400 mt-0.5">
-                Team: <span className="text-zinc-200">{resource.team}</span> • Spec:{' '}
-                <span className="font-mono text-zinc-200 font-semibold">{planName}</span>
-                {vcpuText && <span className="text-zinc-400"> ({vcpuText})</span>}
-                {resource.ip_address && (
-                  <>
-                    {' '}• IP: <span className="font-mono text-zinc-200">{resource.ip_address}</span>
-                  </>
-                )}
-              </p>
+              )}
             </div>
+            <p className="text-xs text-[#525866] mt-1">
+              Team: <span className="font-semibold text-[#111318]">{resource.team}</span> • Hardware Spec:{' '}
+              <span className="font-mono text-[#111318] font-semibold">{planName}</span>
+              {vcpuText && <span className="text-[#525866]"> ({vcpuText})</span>}
+              {resource.ip_address && (
+                <>
+                  {' '}• IP: <span className="font-mono text-[#111318]">{resource.ip_address}</span>
+                </>
+              )}
+            </p>
           </div>
 
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center gap-3">
             <div className="text-right">
-              <span className="text-[10px] uppercase tracking-wider text-zinc-500 block">Monthly Tariff</span>
-              <span className="font-mono text-sm font-bold text-zinc-100">{formatINR(resource.monthly_cost_inr)}</span>
+              <span className="text-[10px] uppercase tracking-wider text-[#68707E] block font-semibold">
+                Monthly Spend
+              </span>
+              <span className="font-mono text-base font-bold text-[#111318]">
+                {formatINR(resource.monthly_cost_inr)}
+              </span>
             </div>
             <button
+              type="button"
               onClick={onClose}
-              className="rounded p-1 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 transition-colors"
+              className="rounded-lg glass-well hover:bg-black/[0.07] px-3 py-1.5 text-xs font-semibold text-[#111318] transition-colors"
             >
-              <X className="h-5 w-5" />
+              Close
             </button>
           </div>
         </div>
@@ -153,84 +135,87 @@ export const ResourceDetailModal: React.FC<ResourceDetailModalProps> = ({
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {/* Peak-Safety Warning Banner if Protected */}
           {isProtectedPeak && (
-            <div className="rounded-lg border border-cyan-500/30 bg-cyan-950/20 p-4">
-              <div className="flex items-start space-x-3">
-                <ShieldCheck className="h-5 w-5 text-cyan-400 mt-0.5 shrink-0" />
-                <div className="space-y-1 text-xs">
-                  <div className="font-semibold text-cyan-200 uppercase tracking-wider text-[11px]">
-                    Peak-Safety Governor: Naive Downsizing Blocked
-                  </div>
-                  <p className="text-cyan-300/90 leading-relaxed">
-                    {explanationText}
-                  </p>
-                  <div className="font-mono text-[11px] text-cyan-400 mt-1">
-                    Telemetry: avg={Math.round(resource.metrics_summary?.cpu_avg || 0)}% | p95={Math.round(resource.metrics_summary?.cpu_p95 || 0)}% | p99={Math.round(resource.metrics_summary?.cpu_p99 || 0)}% (Safety Threshold: 85%)
-                  </div>
+            <div className="rounded-xl status-yellow p-4">
+              <div className="space-y-1 text-xs">
+                <div className="font-bold uppercase tracking-wider text-[11px]">
+                  Peak-Safety Governor: Naive Downsizing Blocked
+                </div>
+                <p className="leading-relaxed">{explanationText}</p>
+                <div className="font-mono text-[11px] font-semibold mt-1">
+                  Telemetry: avg={Math.round(resource.metrics_summary?.cpu_avg || 0)}% | p95=
+                  {Math.round(resource.metrics_summary?.cpu_p95 || 0)}% | p99=
+                  {Math.round(resource.metrics_summary?.cpu_p99 || 0)}% (Safety Ceiling: 85%)
                 </div>
               </div>
             </div>
           )}
 
-          {/* Time-Series Chart Header Controls */}
-          <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-3">
+          {/* Time-Series Chart Card */}
+          <div className="rounded-xl glass-well p-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-black/[0.06] pb-3">
               <div>
-                <h3 className="text-sm font-semibold text-zinc-100">30-Day Continuous Telemetry & Percentile Envelope</h3>
-                <p className="text-xs text-zinc-400">
-                  Granular hourly trace with 85% peak-safety tripwire and p95/p99 reference thresholds
+                <h3 className="text-sm font-bold text-[#111318]">
+                  30-Day Continuous Telemetry &amp; Percentile Envelope
+                </h3>
+                <p className="text-xs text-[#525866]">
+                  Granular trace with 85% peak-safety ceiling and p95/p99 reference lines
                 </p>
               </div>
 
-              {/* Metric Selector Tabs */}
-              <div className="flex space-x-1 rounded-md bg-zinc-900 p-1 border border-zinc-800">
+              <div className="flex gap-1 rounded-lg bg-black/[0.04] p-1">
                 <button
+                  type="button"
                   onClick={() => setMetricTab('cpu')}
-                  className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
+                  className={`rounded-md px-3 py-1 text-xs font-semibold transition-colors ${
                     metricTab === 'cpu'
-                      ? 'bg-zinc-800 text-zinc-100 shadow-xs'
-                      : 'text-zinc-400 hover:text-zinc-200'
+                      ? 'bg-[#111318] text-white'
+                      : 'text-[#525866] hover:text-[#111318]'
                   }`}
                 >
                   CPU Utilization %
                 </button>
                 <button
+                  type="button"
                   onClick={() => setMetricTab('mem')}
-                  className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
+                  className={`rounded-md px-3 py-1 text-xs font-semibold transition-colors ${
                     metricTab === 'mem'
-                      ? 'bg-zinc-800 text-zinc-100 shadow-xs'
-                      : 'text-zinc-400 hover:text-zinc-200'
+                      ? 'bg-[#111318] text-white'
+                      : 'text-[#525866] hover:text-[#111318]'
                   }`}
                 >
                   Memory %
                 </button>
                 <button
+                  type="button"
                   onClick={() => setMetricTab('io')}
-                  className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
+                  className={`rounded-md px-3 py-1 text-xs font-semibold transition-colors ${
                     metricTab === 'io'
-                      ? 'bg-zinc-800 text-zinc-100 shadow-xs'
-                      : 'text-zinc-400 hover:text-zinc-200'
+                      ? 'bg-[#111318] text-white'
+                      : 'text-[#525866] hover:text-[#111318]'
                   }`}
                 >
-                  Disk IOPS & Net Mbps
+                  Disk IOPS &amp; Net Mbps
                 </button>
               </div>
             </div>
 
-            {/* Line Chart */}
             <div className="mt-4 h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={resource.timeseries_30d || []} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                <LineChart
+                  data={resource.timeseries_30d || []}
+                  margin={{ top: 10, right: 20, left: 0, bottom: 0 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(17,19,24,0.06)" vertical={false} />
                   <XAxis
                     dataKey="timestamp"
-                    stroke="#71717a"
+                    stroke="#68707E"
                     fontSize={10}
                     tickLine={false}
                     interval={16}
                     tickFormatter={(val) => String(val).split(' ')[0].split('T')[0]}
                   />
                   <YAxis
-                    stroke="#71717a"
+                    stroke="#68707E"
                     fontSize={10}
                     tickLine={false}
                     domain={metricTab === 'io' ? ['auto', 'auto'] : [0, 100]}
@@ -238,11 +223,12 @@ export const ResourceDetailModal: React.FC<ResourceDetailModalProps> = ({
                   />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: '#18181b',
-                      borderColor: '#3f3f46',
-                      borderRadius: '6px',
+                      backgroundColor: 'rgba(255, 255, 255, 0.92)',
+                      borderColor: 'rgba(17, 19, 24, 0.1)',
+                      borderRadius: '10px',
                       fontSize: '11px',
                       fontFamily: 'JetBrains Mono',
+                      color: '#111318',
                     }}
                   />
                   <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
@@ -251,11 +237,11 @@ export const ResourceDetailModal: React.FC<ResourceDetailModalProps> = ({
                     <>
                       <ReferenceLine
                         y={85}
-                        stroke="#f43f5e"
+                        stroke="#9E2F2B"
                         strokeDasharray="4 4"
                         label={{
                           value: '85% Burst Ceiling (SLA Breach)',
-                          fill: '#f43f5e',
+                          fill: '#8F2925',
                           fontSize: 10,
                           position: 'insideTopRight',
                         }}
@@ -263,26 +249,13 @@ export const ResourceDetailModal: React.FC<ResourceDetailModalProps> = ({
                       {resource.metrics_summary?.cpu_p99 !== undefined && (
                         <ReferenceLine
                           y={resource.metrics_summary.cpu_p99}
-                          stroke="#06b6d4"
+                          stroke="#94601B"
                           strokeDasharray="3 3"
                           label={{
                             value: `p99: ${resource.metrics_summary.cpu_p99.toFixed(1)}%`,
-                            fill: '#06b6d4',
+                            fill: '#7C4F14',
                             fontSize: 10,
                             position: 'insideTopLeft',
-                          }}
-                        />
-                      )}
-                      {resource.metrics_summary?.cpu_avg !== undefined && (
-                        <ReferenceLine
-                          y={resource.metrics_summary.cpu_avg}
-                          stroke="#71717a"
-                          strokeDasharray="2 2"
-                          label={{
-                            value: `Avg: ${resource.metrics_summary.cpu_avg.toFixed(1)}%`,
-                            fill: '#71717a',
-                            fontSize: 10,
-                            position: 'insideBottomLeft',
                           }}
                         />
                       )}
@@ -290,8 +263,8 @@ export const ResourceDetailModal: React.FC<ResourceDetailModalProps> = ({
                         type="monotone"
                         dataKey="cpu_pct"
                         name="CPU Utilization %"
-                        stroke={isProtectedPeak ? '#06b6d4' : '#10b981'}
-                        strokeWidth={1.75}
+                        stroke="#111318"
+                        strokeWidth={2}
                         dot={false}
                       />
                     </>
@@ -300,12 +273,12 @@ export const ResourceDetailModal: React.FC<ResourceDetailModalProps> = ({
                   {metricTab === 'mem' && (
                     <>
                       <ReferenceLine
-                        y={80}
-                        stroke="#f59e0b"
+                        y={75}
+                        stroke="#94601B"
                         strokeDasharray="4 4"
                         label={{
-                          value: '80% High Memory Ceiling',
-                          fill: '#f59e0b',
+                          value: '75% Memory Safety Ceiling',
+                          fill: '#7C4F14',
                           fontSize: 10,
                           position: 'insideTopRight',
                         }}
@@ -314,8 +287,8 @@ export const ResourceDetailModal: React.FC<ResourceDetailModalProps> = ({
                         type="monotone"
                         dataKey="mem_pct"
                         name="Memory Utilization %"
-                        stroke="#38bdf8"
-                        strokeWidth={1.75}
+                        stroke="#236B52"
+                        strokeWidth={2}
                         dot={false}
                       />
                     </>
@@ -327,16 +300,16 @@ export const ResourceDetailModal: React.FC<ResourceDetailModalProps> = ({
                         type="monotone"
                         dataKey="disk_iops"
                         name="Disk IOPS"
-                        stroke="#eab308"
-                        strokeWidth={1.5}
+                        stroke="#111318"
+                        strokeWidth={2}
                         dot={false}
                       />
                       <Line
                         type="monotone"
                         dataKey="net_mbps"
                         name="Network Mbps"
-                        stroke="#38bdf8"
-                        strokeWidth={1.5}
+                        stroke="#236B52"
+                        strokeWidth={2}
                         dot={false}
                       />
                     </>
@@ -348,106 +321,108 @@ export const ResourceDetailModal: React.FC<ResourceDetailModalProps> = ({
 
           {/* Deep Engineering Analysis Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Decision Comparison Card */}
-            <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-4 space-y-2">
-              <span className="text-[11px] font-medium uppercase tracking-wider text-zinc-400">
+            <div className="rounded-xl glass-well p-4 space-y-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#525866]">
                 Peak Headroom Mathematical Proof
               </span>
-              <p className="text-xs text-zinc-300 leading-relaxed font-mono whitespace-pre-line bg-zinc-900 p-3 rounded-md border border-zinc-800/80">
+              <p className="text-xs text-[#111318] leading-relaxed font-mono whitespace-pre-line bg-white/80 border border-black/[0.06] p-3 rounded-lg">
                 {proofText}
               </p>
-              <div className="text-[11px] text-zinc-400">
-                Risk Assessment:{' '}
-                <span className="font-semibold text-zinc-200">
-                  {riskText}
-                </span>
+              <div className="text-xs text-[#525866]">
+                Risk Assessment: <span className="font-bold text-[#111318]">{riskText}</span>
               </div>
             </div>
 
-            {/* Actionable Recommendation Card if present */}
             {rec ? (
-              <div className="rounded-lg border border-emerald-500/30 bg-emerald-950/20 p-4 flex flex-col justify-between">
+              <div className="rounded-xl glass-well p-4 flex flex-col justify-between">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-medium uppercase tracking-wider text-emerald-400">
+                    <span className="px-2.5 py-0.5 rounded status-green text-[11px] font-bold uppercase tracking-wider">
                       Recommendation Action
                     </span>
-                    <span className="rounded bg-emerald-500/20 px-2 py-0.5 text-[10px] font-mono text-emerald-300">
+                    <span className="rounded glass-pill-neutral px-2 py-0.5 text-[10px] font-mono font-bold">
                       Confidence: {rec.confidence_score ?? rec.confidence_pct ?? 95}%
                     </span>
                   </div>
-                  <h4 className="text-sm font-semibold text-zinc-100">
+                  <h4 className="text-sm font-bold text-[#111318]">
                     {rec.action_title || rec.action_type}
                   </h4>
-                  <div className="font-mono text-xs text-zinc-300">
-                    {rec.current_config || rec.current_spec} <span className="text-emerald-400">→</span>{' '}
-                    {rec.recommended_config || rec.target_spec}
+                  <div className="font-mono text-xs text-[#111318] font-semibold">
+                    {rec.current_config || rec.current_spec} →{' '}
+                    <span className="text-[#1D5C46]">
+                      {rec.recommended_config || rec.target_spec}
+                    </span>
                   </div>
-                  <div className="font-mono text-xs text-emerald-300">
+                  <div className="font-mono text-xs text-[#3F4450]">
                     Formula: {rec.formula_explanation || rec.formula_string}
                   </div>
-                  <div className="text-[11px] text-zinc-400">
-                    Peak Proof: <span className="text-zinc-300">{rec.reason || rec.peak_proof}</span>
+                  <div className="text-xs text-[#525866]">
+                    Proof: <span className="text-[#111318]">{rec.reason || rec.peak_proof}</span>
                   </div>
                 </div>
 
-                <div className="mt-4 flex items-center justify-between pt-3 border-t border-emerald-500/20">
-                  <span className="font-mono text-xs font-bold text-emerald-400">
+                <div className="mt-4 flex items-center justify-between pt-3 border-t border-black/[0.06]">
+                  <span className="font-mono text-sm font-bold text-[#1D5C46]">
                     Save {formatINR(rec.monthly_savings_inr)}/mo
                   </span>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center gap-2">
                     {onRejectRecommendation && (
                       <button
+                        type="button"
                         onClick={() => onRejectRecommendation(rec.id)}
-                        className={`rounded-md border border-zinc-700 bg-zinc-800 px-3 py-1 text-xs font-medium text-zinc-300 hover:bg-zinc-700 ${
-                          rec.status === 'rejected' ? 'bg-zinc-700 text-rose-300 border-rose-500/40' : ''
+                        className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                          rec.status === 'rejected'
+                            ? 'status-red'
+                            : 'bg-white/80 border border-black/[0.10] text-[#3F4450] hover:bg-white'
                         }`}
                       >
-                        Reject
+                        {rec.status === 'rejected' ? 'Skipped' : 'Skip'}
                       </button>
                     )}
                     {onAcceptRecommendation && (
                       <button
+                        type="button"
                         onClick={() => onAcceptRecommendation(rec.id)}
-                        className={`rounded-md border border-emerald-500/40 bg-emerald-900/40 px-3 py-1 text-xs font-medium text-emerald-300 hover:bg-emerald-900/60 ${
-                          rec.status === 'accepted' ? 'bg-emerald-600 text-white' : ''
+                        className={`rounded-lg px-3.5 py-1.5 text-xs font-bold transition-colors ${
+                          rec.status === 'accepted'
+                            ? 'status-green'
+                            : 'bg-[#111318] text-white hover:bg-[#272B33]'
                         }`}
                       >
-                        {rec.status === 'accepted' ? 'Committed ✓' : 'Accept Change'}
+                        {rec.status === 'accepted' ? 'Approved' : 'Approve Change'}
                       </button>
                     )}
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-4 flex flex-col justify-center items-center text-center text-xs text-zinc-400 space-y-2">
-                <Check className="h-6 w-6 text-emerald-400" />
-                <span className="font-semibold text-zinc-200">No Action Required</span>
+              <div className="rounded-xl glass-well p-4 flex flex-col justify-center items-center text-center text-xs text-[#525866] space-y-2">
+                <span className="px-3 py-1 rounded-lg status-green font-bold uppercase text-[11px]">
+                  SLA Verified
+                </span>
+                <span className="font-bold text-[#111318] text-sm">No Action Required</span>
                 <p>
-                  Workload is currently operating within optimal capacity parameters or protected by peak safety governor.
+                  Workload is operating within optimal capacity parameters or protected by the Peak-Safety Governor.
                 </p>
               </div>
             )}
           </div>
 
           {/* Dedicated SRE & AI Telemetry Audit Panel (Python AI :8001 Integration) */}
-          <div className="rounded-lg border border-zinc-800 bg-zinc-950/80 p-5 space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800 pb-3">
-              <div className="flex items-center space-x-2">
-                <Cpu className="h-4 w-4 text-emerald-400" />
-                <h3 className="text-sm font-semibold text-zinc-100">
-                  SRE & AI Telemetry Audit (Jev Risk + 24h Quantile Forecast + Rollback Runbook)
-                </h3>
-              </div>
-              <div className="flex items-center space-x-2 font-mono text-[10px]">
-                <span className="rounded border border-emerald-500/30 bg-emerald-950/30 px-2 py-0.5 text-emerald-300">
+          <div className="rounded-xl glass-well p-5 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-black/[0.06] pb-3">
+              <h3 className="text-sm font-bold text-[#111318]">
+                SRE &amp; AI Telemetry Audit (Jev Risk + 24h Quantile Forecast + Rollback Runbook)
+              </h3>
+              <div className="flex items-center gap-2 font-mono text-[11px]">
+                <span className="rounded-md bg-[#111318] text-white px-2.5 py-0.5 font-semibold">
                   {eng.provider || 'Python-AI-Service (:8001)'}
                 </span>
-                <span className="rounded border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-zinc-300">
-                  Evidence: {eng.confidence_level || 'HIGH'}
+                <span className="rounded-md glass-pill-neutral px-2.5 py-0.5 font-semibold">
+                  Confidence: {eng.confidence_level || 'HIGH'}
                 </span>
                 {eng.workload_classification && (
-                  <span className="rounded border border-cyan-500/30 bg-cyan-950/30 px-2 py-0.5 text-cyan-300">
+                  <span className="rounded-md glass-pill-neutral px-2.5 py-0.5 font-semibold">
                     {eng.workload_classification}
                   </span>
                 )}
@@ -456,16 +431,16 @@ export const ResourceDetailModal: React.FC<ResourceDetailModalProps> = ({
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               {/* Col 1: TypeSafe Jev Ordinal Risk & GreenOps */}
-              <div className="rounded-md border border-zinc-800 bg-zinc-900/70 p-3.5 space-y-3 font-mono">
+              <div className="rounded-xl bg-white/75 border border-black/[0.06] p-4 space-y-3 font-mono">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] uppercase text-zinc-400 font-semibold">
+                  <span className="text-[11px] uppercase text-[#111318] font-bold">
                     Jev Ordinal Capacity Risk
                   </span>
                   <span
-                    className={`text-xs font-bold px-2 py-0.5 rounded border ${
+                    className={`text-xs font-bold px-2 py-0.5 rounded ${
                       (jev?.risk_score_percentage ?? eng.risk_score ?? 20) > 65
-                        ? 'border-rose-500/40 bg-rose-950/40 text-rose-300'
-                        : 'border-emerald-500/40 bg-emerald-950/40 text-emerald-300'
+                        ? 'status-red'
+                        : 'status-green'
                     }`}
                   >
                     {jev?.risk_score_percentage ?? eng.risk_score ?? 18}% Index
@@ -478,20 +453,20 @@ export const ResourceDetailModal: React.FC<ResourceDetailModalProps> = ({
                       const pct = Math.round(Number(prob) * 100);
                       return (
                         <div key={level} className="space-y-0.5">
-                          <div className="flex justify-between text-[10px] text-zinc-400">
+                          <div className="flex justify-between text-[10px] text-[#525866]">
                             <span>{level}</span>
-                            <span className="text-zinc-200">{pct}%</span>
+                            <span className="text-[#111318] font-semibold">{pct}%</span>
                           </div>
-                          <div className="h-1.5 w-full rounded-full bg-zinc-800 overflow-hidden">
+                          <div className="h-2 w-full rounded-full bg-black/[0.06] overflow-hidden">
                             <div
                               className={`h-full rounded-full ${
                                 level === 'Critical' || level === 'High'
-                                  ? 'bg-rose-500'
+                                  ? 'bg-[#9E2F2B]'
                                   : level === 'Moderate'
-                                  ? 'bg-amber-500'
-                                  : 'bg-emerald-500'
+                                  ? 'bg-[#94601B]'
+                                  : 'bg-[#236B52]'
                               }`}
-                              style={{ width: `${Math.max(3, pct)}%` }}
+                              style={{ width: `${Math.max(4, pct)}%` }}
                             />
                           </div>
                         </div>
@@ -501,25 +476,22 @@ export const ResourceDetailModal: React.FC<ResourceDetailModalProps> = ({
                 )}
 
                 {greenOps && (
-                  <div className="pt-2 border-t border-zinc-800/80 flex items-center justify-between text-[10px]">
-                    <span className="flex items-center space-x-1 text-emerald-400">
-                      <Leaf className="h-3.5 w-3.5" />
-                      <span>GreenOps (PUE {greenOps.pue}):</span>
-                    </span>
-                    <span className="text-zinc-200">
-                      Score {greenOps.sustainability_score} • {greenOps.estimated_carbon_saved_kg_co2e} kg CO₂
+                  <div className="pt-2 border-t border-black/[0.06] flex items-center justify-between text-[11px] text-[#1D5C46]">
+                    <span className="font-bold">GreenOps (PUE {greenOps.pue}):</span>
+                    <span>
+                      Score {greenOps.sustainability_score} · {greenOps.estimated_carbon_saved_kg_co2e} kg CO2
                     </span>
                   </div>
                 )}
               </div>
 
               {/* Col 2: 24h Pooled TFT Quantile Forecast & Blast Radius */}
-              <div className="rounded-md border border-zinc-800 bg-zinc-900/70 p-3.5 space-y-3">
+              <div className="rounded-xl bg-white/75 border border-black/[0.06] p-4 space-y-3">
                 <div className="flex items-center justify-between font-mono">
-                  <span className="text-[11px] uppercase text-zinc-400 font-semibold">
+                  <span className="text-[11px] uppercase text-[#111318] font-bold">
                     24h Quantile Forecast (q10 / q50 / q90)
                   </span>
-                  <span className="text-[10px] text-cyan-400">TFT + Diurnal Envelope</span>
+                  <span className="text-[10px] text-[#525866] font-bold">TFT Envelope</span>
                 </div>
 
                 {sampleQuantiles.length > 0 ? (
@@ -527,24 +499,23 @@ export const ResourceDetailModal: React.FC<ResourceDetailModalProps> = ({
                     {sampleQuantiles.map((pt, idx) => (
                       <div
                         key={pt.hour_label || idx}
-                        className="rounded border border-zinc-800 bg-zinc-950 p-1.5 text-center"
+                        className="rounded-lg glass-well p-1.5 text-center"
                       >
-                        <div className="text-zinc-500 truncate">{pt.hour_label}</div>
-                        <div className="text-zinc-200 font-semibold">q50: {pt.cpu_q50}%</div>
-                        <div className="text-cyan-400">q90: {pt.cpu_q90}%</div>
+                        <div className="text-[#68707E] truncate">{pt.hour_label}</div>
+                        <div className="text-[#111318] font-bold">q50: {pt.cpu_q50}%</div>
+                        <div className="text-[#3F4450] font-semibold">q90: {pt.cpu_q90}%</div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-xs text-zinc-400 font-mono">
+                  <p className="text-xs text-[#525866] font-mono">
                     24h peak envelope within p95={resource.metrics_summary?.cpu_p95}% ceiling.
                   </p>
                 )}
 
                 {eng.blast_radius_analysis && (
-                  <div className="rounded border border-zinc-800 bg-zinc-950 p-2 text-[11px] text-zinc-300 leading-relaxed">
-                    <span className="font-mono text-[10px] uppercase text-amber-400 block font-semibold">
-                      <AlertTriangle className="h-3 w-3 inline mr-1" />
+                  <div className="rounded-lg glass-well p-2.5 text-xs text-[#111318] leading-relaxed">
+                    <span className="font-mono text-[10px] uppercase text-[#7C4F14] block font-bold">
                       Blast Radius Assessment:
                     </span>
                     {eng.blast_radius_analysis}
@@ -553,14 +524,17 @@ export const ResourceDetailModal: React.FC<ResourceDetailModalProps> = ({
               </div>
 
               {/* Col 3: Rollback Runbook & Terraform HCL Snippet */}
-              <div className="rounded-md border border-zinc-800 bg-zinc-900/70 p-3.5 space-y-3 flex flex-col justify-between">
+              <div className="rounded-xl bg-white/75 border border-black/[0.06] p-4 space-y-3 flex flex-col justify-between">
                 <div className="space-y-2">
-                  <span className="text-[11px] font-mono uppercase text-zinc-400 font-semibold block">
-                    SRE Rollback & Verification Runbook
+                  <span className="text-[11px] font-mono uppercase text-[#111318] font-bold block">
+                    SRE Rollback &amp; Verification Runbook
                   </span>
-                  <ul className="space-y-1 text-[11px] text-zinc-300 font-mono">
+                  <ul className="space-y-1.5 text-[11px] text-[#111318] font-mono">
                     {runbookSteps.slice(0, 3).map((step, i) => (
-                      <li key={i} className="leading-snug bg-zinc-950 px-2 py-1 rounded border border-zinc-800/80">
+                      <li
+                        key={i}
+                        className="leading-snug glass-well px-2.5 py-1.5 rounded-lg"
+                      >
                         {step}
                       </li>
                     ))}
@@ -568,21 +542,18 @@ export const ResourceDetailModal: React.FC<ResourceDetailModalProps> = ({
                 </div>
 
                 {tfCode && (
-                  <div className="space-y-1 pt-2 border-t border-zinc-800">
-                    <div className="flex items-center justify-between text-[10px] font-mono text-zinc-400">
-                      <span className="flex items-center space-x-1">
-                        <Terminal className="h-3 w-3 text-emerald-400" />
-                        <span>Terraform HCL Target</span>
-                      </span>
+                  <div className="space-y-1.5 pt-2 border-t border-black/[0.06]">
+                    <div className="flex items-center justify-between text-[10px] font-mono">
+                      <span className="font-bold text-[#111318]">Terraform HCL Target</span>
                       <button
+                        type="button"
                         onClick={handleCopyTf}
-                        className="flex items-center space-x-1 text-emerald-400 hover:text-emerald-300"
+                        className="px-2 py-0.5 rounded bg-[#111318] text-white font-bold"
                       >
-                        <Copy className="h-3 w-3" />
-                        <span>{copiedTf ? 'Copied!' : 'Copy HCL'}</span>
+                        {copiedTf ? 'Copied HCL' : 'Copy HCL'}
                       </button>
                     </div>
-                    <pre className="max-h-20 overflow-x-auto rounded bg-zinc-950 p-2 text-[10px] font-mono text-zinc-300 border border-zinc-800">
+                    <pre className="max-h-20 overflow-x-auto rounded-lg bg-[#111318] p-2 text-[10px] font-mono text-[#F3F4F6]">
                       {tfCode}
                     </pre>
                   </div>
@@ -593,13 +564,15 @@ export const ResourceDetailModal: React.FC<ResourceDetailModalProps> = ({
         </div>
 
         {/* Modal Footer */}
-        <div className="flex items-center justify-between border-t border-zinc-800 bg-zinc-950/80 px-6 py-3 text-xs text-zinc-400">
+        <div className="flex items-center justify-between border-t border-black/[0.06] bg-white/75 px-6 py-3 text-xs text-[#525866]">
           <span className="font-mono">
-            Monthly Tariff: {formatINR(resource.monthly_cost_inr)}/mo (Hourly: ₹{(resource.monthly_cost_inr / 730).toFixed(2)})
+            Monthly Spend: <strong className="text-[#111318]">{formatINR(resource.monthly_cost_inr)}/mo</strong> (Hourly: ₹
+            {(resource.monthly_cost_inr / 730).toFixed(2)})
           </span>
           <button
+            type="button"
             onClick={onClose}
-            className="rounded-md border border-zinc-700 bg-zinc-800 px-4 py-1 text-xs font-medium text-zinc-200 hover:bg-zinc-700 transition-colors"
+            className="rounded-lg bg-[#111318] hover:bg-[#272B33] px-4 py-1.5 text-xs font-semibold text-white transition-colors"
           >
             Close Inspector
           </button>

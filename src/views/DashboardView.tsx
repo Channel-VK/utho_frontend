@@ -1,17 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import {
-  TrendingUp,
-  ShieldCheck,
-  AlertTriangle,
-  Zap,
-  Leaf,
-  ArrowUpRight,
-  ArrowDownRight,
-  Layers,
-  MapPin,
-  Cpu,
-  Calendar,
-} from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -26,31 +13,56 @@ import {
 } from 'recharts';
 import type {
   DashboardResponse,
+  Resource,
+  ResourceDetail,
   Recommendation,
   AIForecastResponse,
   AIBriefingResponse,
 } from '../types/api';
 import { apiClient } from '../api/client';
 import { formatINR, formatNumber } from '../utils/format';
-import { MondayRunbookStrip } from '../components/common/MondayRunbookStrip';
+
+export type ResourceCategoryTab = 'ALL' | 'FLAGGED' | 'PROTECTED' | 'COMPUTE' | 'STORAGE';
 
 interface DashboardViewProps {
   data: DashboardResponse;
+  resources: Resource[];
   recommendations?: Recommendation[];
+  selectedResourceDetail?: ResourceDetail | null;
+  externalCategory?: ResourceCategoryTab;
+  onCategoryChange?: (cat: ResourceCategoryTab) => void;
+  onSelectResourceForDrawer: (id: string, openFullModal?: boolean) => void;
+  onAcceptRecommendation?: (recId: string) => void;
   onNavigateToInventory: (filterStatus?: string) => void;
   onNavigateToRecommendations: (filterAction?: string) => void;
   onNavigateToAlerts: () => void;
   onAcceptCategory?: (category: 'orphan' | 'off_hours' | 'rightsize') => void;
+  onOpenExportModal?: () => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
   data,
+  resources,
   recommendations = [],
-  onNavigateToInventory,
+  selectedResourceDetail,
+  externalCategory = 'ALL',
+  onCategoryChange,
+  onSelectResourceForDrawer,
+  onAcceptRecommendation,
   onNavigateToRecommendations,
-  onNavigateToAlerts,
   onAcceptCategory,
+  onOpenExportModal,
 }) => {
+  const [internalCategoryTab, setInternalCategoryTab] = useState<ResourceCategoryTab>('ALL');
+  const categoryTab = onCategoryChange ? externalCategory : internalCategoryTab;
+  const [regionFilter, setRegionFilter] = useState<string>('ALL');
+  const [envFilter, setEnvFilter] = useState<string>('ALL');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [page, setPage] = useState<number>(1);
+  const [showAllRows, setShowAllRows] = useState<boolean>(false);
+  const [drawerMetric, setDrawerMetric] = useState<'cpu' | 'mem'>('cpu');
+
+  // Python AI :8001 Role Briefing & Multi-Horizon Forecaster state
   const [briefingRole, setBriefingRole] = useState<'executive' | 'finance' | 'engineering'>('executive');
   const [briefing, setBriefing] = useState<AIBriefingResponse | null>(null);
   const [horizonDays, setHorizonDays] = useState<30 | 60 | 90>(60);
@@ -76,188 +88,1172 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     };
   }, [horizonDays, data.accepted_monthly_savings_inr]);
 
-  // Normalize historical chart points for Recharts (supports total_inr and spend_inr)
+  const recByResourceId = useMemo(() => {
+    const map = new Map<string, Recommendation>();
+    for (const r of recommendations) {
+      map.set(r.resource_id, r);
+    }
+    return map;
+  }, [recommendations]);
+
+  const orphanRecs = useMemo(
+    () =>
+      recommendations.filter(
+        (r) =>
+          r.action_type === 'CLEANUP_ORPHAN' ||
+          r.action_type === 'CLEAN_ORPHANED_VOLUME' ||
+          r.action_type === 'CLEAN_ORPHANED_IP'
+      ),
+    [recommendations]
+  );
+  const offHoursRecs = useMemo(
+    () =>
+      recommendations.filter(
+        (r) =>
+          r.action_type === 'SCHEDULE_OFF_HOURS' ||
+          r.action_type === 'OFF_HOURS_SHUTDOWN'
+      ),
+    [recommendations]
+  );
+  const rightsizeRecs = useMemo(
+    () =>
+      recommendations.filter(
+        (r) =>
+          r.action_type === 'RIGHTSIZE_VM' ||
+          r.action_type === 'TERMINATE_ZOMBIE' ||
+          r.action_type === 'TERMINATE_ZOMBIE_VM'
+      ),
+    [recommendations]
+  );
+
+  const orphanTotalSavings = orphanRecs.reduce((acc, r) => acc + r.monthly_savings_inr, 0);
+  const offHoursTotalSavings = offHoursRecs.reduce((acc, r) => acc + r.monthly_savings_inr, 0);
+  const rightsizeTotalSavings = rightsizeRecs.reduce((acc, r) => acc + r.monthly_savings_inr, 0);
+
+  const orphanPendingCount = orphanRecs.filter((r) => r.status === 'pending').length;
+  const offHoursPendingCount = offHoursRecs.filter((r) => r.status === 'pending').length;
+  const rightsizePendingCount = rightsizeRecs.filter((r) => r.status === 'pending').length;
+
+  const countAll = resources.length;
+  const countFlagged = resources.filter((r) =>
+    ['OVERPROVISIONED', 'IDLE_SCHEDULE_CANDIDATE', 'ZOMBIE', 'ORPHANED'].includes(
+      r.optimization_status
+    )
+  ).length;
+  const countProtected = resources.filter(
+    (r) => r.optimization_status === 'PROTECTED_PEAK_LOAD'
+  ).length;
+  const countCompute = resources.filter((r) => r.type === 'vm').length;
+  const countStorage = resources.filter((r) => r.type !== 'vm').length;
+
+  const filteredResources = useMemo(() => {
+    return resources.filter((r) => {
+      if (categoryTab === 'FLAGGED') {
+        if (
+          !['OVERPROVISIONED', 'IDLE_SCHEDULE_CANDIDATE', 'ZOMBIE', 'ORPHANED'].includes(
+            r.optimization_status
+          )
+        )
+          return false;
+      } else if (categoryTab === 'PROTECTED') {
+        if (r.optimization_status !== 'PROTECTED_PEAK_LOAD') return false;
+      } else if (categoryTab === 'COMPUTE') {
+        if (r.type !== 'vm') return false;
+      } else if (categoryTab === 'STORAGE') {
+        if (r.type === 'vm') return false;
+      }
+
+      if (regionFilter !== 'ALL' && r.region !== regionFilter) return false;
+      if (envFilter !== 'ALL' && r.env.toLowerCase() !== envFilter.toLowerCase()) return false;
+
+      if (searchQuery.trim() !== '') {
+        const q = searchQuery.toLowerCase().trim();
+        const specStr = `${r.plan || ''} ${r.current_spec || ''} ${r.vcpu || ''} ${r.ram_gb || ''}`.toLowerCase();
+        const match =
+          r.name.toLowerCase().includes(q) ||
+          r.id.toLowerCase().includes(q) ||
+          r.region.toLowerCase().includes(q) ||
+          (r.team && r.team.toLowerCase().includes(q)) ||
+          specStr.includes(q);
+        if (!match) return false;
+      }
+
+      return true;
+    });
+  }, [resources, categoryTab, regionFilter, envFilter, searchQuery]);
+
+  const pageSize = 12;
+  const totalPages = Math.max(1, Math.ceil(filteredResources.length / pageSize));
+  const visibleResources = showAllRows
+    ? filteredResources
+    : filteredResources.slice((page - 1) * pageSize, page * pageSize);
+
+  const handleSelectCategory = (cat: ResourceCategoryTab) => {
+    setInternalCategoryTab(cat);
+    onCategoryChange?.(cat);
+    setPage(1);
+  };
+
+  const formatHardwareSpec = (r: Resource) => {
+    if (r.type === 'vm') {
+      const plan = r.plan || (r.current_spec ? r.current_spec.split(' ')[0] : 'm8.xlarge');
+      const vcpu = r.vcpu ?? 4;
+      const ram = r.ram_gb ?? 16;
+      return `${plan} · ${vcpu} vCPU · ${ram} GB RAM · ${r.region}`;
+    }
+    if (r.type === 'volume' || r.type === 'block_volume' || r.type === 'block_ssd') {
+      const disk = r.disk_gb ?? 500;
+      return `Block SSD · ${disk} GB NVMe · ${r.region}`;
+    }
+    return `Public IPv4 · Elastic IP (${r.ip_address || 'Unbound'}) · ${r.region}`;
+  };
+
+  // Neutral Monochromatic Environment Pill (Never competes with semantic status colors)
+  const renderEnvBadge = (env: string) => {
+    const lower = env.toLowerCase();
+    const label =
+      lower === 'prod' || lower === 'production'
+        ? 'Production'
+        : lower === 'staging'
+        ? 'Staging'
+        : 'Development';
+    return (
+      <span className="inline-flex px-2.5 py-0.5 rounded-md glass-pill-neutral text-[11px] font-medium tracking-wide">
+        {label}
+      </span>
+    );
+  };
+
+  // Avg / Peak Utilization Cell using only Blended Status Colors (Sage, Ochre, Carmine)
+  const renderAvgPeakCell = (r: Resource) => {
+    if (r.type === 'vm') {
+      const cpuAvg = Math.round(r.metrics_summary?.cpu_avg || 0);
+      const cpuPeak = Math.round(r.metrics_summary?.cpu_p99 || r.metrics_summary?.cpu_p95 || 0);
+      const ramAvg = Math.round(r.metrics_summary?.mem_avg || 0);
+      const ramPeak = Math.round(r.metrics_summary?.mem_p95 || 0);
+
+      const barColor =
+        cpuPeak >= 85
+          ? 'bg-[#9E2F2B]'
+          : cpuPeak >= 65
+          ? 'bg-[#94601B]'
+          : 'bg-[#236B52]';
+
+      return (
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <div className="w-16 h-1.5 rounded-full bg-black/[0.07] overflow-hidden flex shrink-0">
+              <div
+                className={`${barColor} h-full rounded-full`}
+                style={{ width: `${Math.min(100, Math.max(4, cpuPeak))}%` }}
+              />
+            </div>
+            <span className="text-[#111318] text-[12px] font-semibold font-mono whitespace-nowrap">
+              CPU {cpuAvg}% / {cpuPeak}%
+            </span>
+          </div>
+          <div className="text-[11px] font-mono text-[#767D8C]">
+            RAM Avg {ramAvg}% · Peak {ramPeak}%
+          </div>
+        </div>
+      );
+    }
+
+    const isOrphan = r.optimization_status === 'ORPHANED';
+    return (
+      <div className="space-y-1">
+        <div className="flex items-center gap-2">
+          <div className="w-16 h-1.5 rounded-full bg-black/[0.07] overflow-hidden flex shrink-0">
+            <div
+              className={`${isOrphan ? 'bg-[#9E2F2B]' : 'bg-[#236B52]'} h-full rounded-full`}
+              style={{ width: isOrphan ? '8%' : '45%' }}
+            />
+          </div>
+          <span
+            className={`text-[12px] font-semibold font-mono ${
+              isOrphan ? 'text-[#8F2925]' : 'text-[#111318]'
+            }`}
+          >
+            {isOrphan ? '0% (Idle)' : 'Active I/O'}
+          </span>
+        </div>
+        <div className="text-[11px] font-mono text-[#767D8C]">
+          {r.attached_to ? `Attached: ${r.attached_to}` : 'Unmounted >30d'}
+        </div>
+      </div>
+    );
+  };
+
+  const renderRecommendationText = (r: Resource, rec?: Recommendation) => {
+    if (rec) {
+      const target =
+        rec.recommended_config || rec.target_spec || rec.action_title || rec.action_type;
+      const pct =
+        r.monthly_cost_inr > 0
+          ? Math.round((rec.monthly_savings_inr / r.monthly_cost_inr) * 100)
+          : 0;
+      return (
+        <div>
+          <div className="text-[#111318] font-medium text-xs truncate max-w-[230px]">
+            {target} {pct > 0 ? `(-${pct}%)` : ''}
+          </div>
+          <div className="text-[11px] text-[#1D5C46] font-mono font-medium truncate max-w-[230px]">
+            Save {formatINR(rec.monthly_savings_inr)}/mo · {rec.status.toUpperCase()}
+          </div>
+        </div>
+      );
+    }
+
+    if (r.optimization_status === 'PROTECTED_PEAK_LOAD') {
+      const p99 = Math.round(r.metrics_summary?.cpu_p99 || 0);
+      return (
+        <div>
+          <div className="text-[#7C4F14] font-semibold text-xs">
+            Peak Protected (Keep Plan)
+          </div>
+          <div className="text-[11px] text-[#767D8C] font-mono">
+            Daily p99={p99}% exceeds 85% ceiling
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div>
+        <div className="text-[#4A505C] font-medium text-xs">
+          Right-Sized Within SLA
+        </div>
+        <div className="text-[11px] text-[#767D8C] font-mono">
+          Balanced diurnal utilization
+        </div>
+      </div>
+    );
+  };
+
+  // Row Action Button: Status pills for Approved/Protected, Sleek Carbon/Glass for Actions
+  const renderRowActionButton = (r: Resource, rec?: Recommendation) => {
+    if (rec) {
+      const isAccepted = rec.status === 'accepted';
+      if (isAccepted) {
+        return (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelectResourceForDrawer(r.id, false);
+            }}
+            className="px-2.5 py-1 rounded-lg status-green text-[11px] font-semibold transition-all"
+          >
+            Approved
+          </button>
+        );
+      }
+
+      const isOffHours =
+        rec.action_type === 'SCHEDULE_OFF_HOURS' ||
+        rec.action_type === 'OFF_HOURS_SHUTDOWN';
+      const isOrphan =
+        rec.action_type === 'CLEANUP_ORPHAN' ||
+        rec.action_type === 'CLEAN_ORPHANED_VOLUME' ||
+        rec.action_type === 'CLEAN_ORPHANED_IP';
+      const isZombie =
+        rec.action_type === 'TERMINATE_ZOMBIE' ||
+        rec.action_type === 'TERMINATE_ZOMBIE_VM';
+
+      const label = isOrphan
+        ? 'Purge'
+        : isOffHours
+        ? 'Schedule'
+        : isZombie
+        ? 'Terminate'
+        : 'Downsize';
+
+      return (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (onAcceptRecommendation) {
+              onAcceptRecommendation(rec.id);
+            } else {
+              onSelectResourceForDrawer(r.id, false);
+            }
+          }}
+          className="px-2.5 py-1 rounded-lg bg-[#111318] hover:bg-[#252A34] text-white text-[11px] font-medium shadow-2xs transition-all"
+        >
+          {label}
+        </button>
+      );
+    }
+
+    if (r.optimization_status === 'PROTECTED_PEAK_LOAD') {
+      return (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelectResourceForDrawer(r.id, false);
+          }}
+          className="px-2.5 py-1 rounded-lg status-yellow text-[11px] font-semibold transition-all"
+        >
+          Protected
+        </button>
+      );
+    }
+
+    return (
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onSelectResourceForDrawer(r.id, false);
+        }}
+        className="px-2.5 py-1 rounded-lg glass-pill-neutral hover:bg-black/[0.08] text-[11px] font-medium transition-all"
+      >
+        Inspect
+      </button>
+    );
+  };
+
+  const drawerChartGeometry = useMemo(() => {
+    const series = selectedResourceDetail?.timeseries_30d || [];
+    if (series.length === 0) {
+      return {
+        polyline: '30,97 90,87 150,89 210,95 255,87 330,94',
+        polygon: '30,110 30,97 90,87 150,89 210,95 255,87 330,94 330,110',
+        peakVal: 21,
+        avgVal: 11.4,
+        peakY: 87,
+        peakX: 255,
+      };
+    }
+
+    const sampled = series
+      .filter((_, idx) => idx % Math.max(1, Math.floor(series.length / 22)) === 0)
+      .slice(0, 22);
+    const values = sampled.map((pt) =>
+      drawerMetric === 'cpu' ? Number(pt.cpu_pct || 0) : Number(pt.mem_pct || 0)
+    );
+    const maxVal = Math.max(...values, 1);
+    const avgVal = values.reduce((a, b) => a + b, 0) / Math.max(1, values.length);
+
+    let peakX = 255;
+    let peakY = 87;
+    let bestVal = -1;
+
+    const coords = values.map((v, i) => {
+      const x = Math.round(30 + (i / Math.max(1, values.length - 1)) * 300);
+      const clamped = Math.min(100, Math.max(0, v));
+      const y = Math.round(110 - (clamped / 100) * 90);
+      if (v > bestVal) {
+        bestVal = v;
+        peakX = x;
+        peakY = y;
+      }
+      return `${x},${y}`;
+    });
+
+    const polyline = coords.join(' ');
+    const polygon = `30,110 ${polyline} 330,110`;
+
+    return {
+      polyline,
+      polygon,
+      peakVal: Math.round(maxVal),
+      avgVal: Number(avgVal.toFixed(1)),
+      peakY,
+      peakX,
+    };
+  }, [selectedResourceDetail, drawerMetric]);
+
   const normalizedHistorical = (data.historical_spend_6m || []).map((item) => ({
     month: item.month,
     spend_inr: item.total_inr ?? item.spend_inr ?? 0,
-    compute_inr: item.compute_inr,
-    storage_inr: item.storage_inr,
   }));
 
-  // Normalize forecast points (supports date/day and do_nothing_inr/unoptimized_inr)
   const normalizedForecast = (data.forecast_60d || []).map((item) => ({
     displayDate: item.date ? item.date.slice(5) : item.day || 'Day',
     unoptimized_inr: item.do_nothing_inr ?? item.unoptimized_inr ?? 0,
     optimized_inr: item.optimized_inr,
   }));
 
-  const handleCategoryAction = (category: 'orphan' | 'off_hours' | 'rightsize') => {
-    if (onAcceptCategory) {
-      onAcceptCategory(category);
-    } else {
-      onNavigateToRecommendations();
-    }
-  };
+  const activeResource =
+    selectedResourceDetail || (resources[0] as unknown as ResourceDetail | undefined);
+  const activeRec = activeResource
+    ? activeResource.recommendation || recByResourceId.get(activeResource.id)
+    : undefined;
+  const activeEng = activeResource?.engineering_analysis || {};
+
+  const currentCostInr = activeResource?.monthly_cost_inr || 0;
+  const savingsInr = activeRec?.monthly_savings_inr || 0;
+  const targetCostInr = Math.max(0, currentCostInr - savingsInr);
+  const savingsPct = currentCostInr > 0 ? Math.round((savingsInr / currentCostInr) * 100) : 0;
 
   return (
-    <div className="space-y-6">
-      {/* Top Banner Context */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-800/80 pb-4">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight text-zinc-100">
-            Executive FinOps & Cost Optimization Cockpit
-          </h1>
-          <p className="text-xs text-zinc-400 mt-0.5">
-            Real-time telemetry and bill projections across <span className="font-mono text-zinc-300">in-noida-1</span>,{' '}
-            <span className="font-mono text-zinc-300">in-bangalore-1</span>, and{' '}
-            <span className="font-mono text-zinc-300">in-mumbai-1</span>.
-          </p>
+    <div className="flex flex-col w-full pb-space-xl space-y-space-lg">
+      {/* 1. TOP GLASS SUMMARY STRIP */}
+      <div className="w-full glass-card rounded-2xl p-space-lg">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-space-lg">
+          {/* Metrics Trio */}
+          <div className="flex flex-wrap items-center gap-space-xl">
+            <div>
+              <div className="flex items-center gap-space-xs mb-1">
+                <span className="font-label-caps text-label-caps text-[#767D8C] uppercase tracking-wider">
+                  Current Monthly Spend
+                </span>
+                <span className="px-2 py-0.5 rounded-md status-red text-[11px] font-semibold font-tabular-numeric-md">
+                  +{data.bill_growth_6m_pct}% 6M Trend
+                </span>
+              </div>
+              <div className="font-tabular-numeric-lg text-tabular-numeric-lg text-[#111318]">
+                {formatINR(data.current_monthly_spend_inr)}
+              </div>
+            </div>
+
+            <div className="hidden sm:block w-px h-10 bg-black/[0.07]" />
+
+            <div>
+              <div className="flex items-center gap-space-xs mb-1">
+                <span className="font-label-caps text-label-caps text-[#767D8C] uppercase tracking-wider">
+                  Projected After Optimization
+                </span>
+                <span className="px-2 py-0.5 rounded-md status-green text-[11px] font-semibold font-tabular-numeric-md">
+                  Save {formatINR(data.accepted_monthly_savings_inr)} ({data.accepted_savings_pct.toFixed(1)}%)
+                </span>
+              </div>
+              <div className="font-tabular-numeric-lg text-tabular-numeric-lg text-[#111318]">
+                {formatINR(data.projected_monthly_spend_inr)}
+              </div>
+            </div>
+
+            <div className="hidden md:block w-px h-10 bg-black/[0.07]" />
+
+            <div>
+              <div className="flex items-center gap-space-xs mb-1">
+                <span className="font-label-caps text-label-caps text-[#767D8C] uppercase tracking-wider">
+                  Total Pipeline Opportunity
+                </span>
+                <span className="px-2 py-0.5 rounded-md status-yellow text-[11px] font-semibold font-tabular-numeric-md">
+                  {data.protected_peak_vms_count} Peak Protected
+                </span>
+              </div>
+              <div className="font-tabular-numeric-lg text-tabular-numeric-lg text-[#1D5C46]">
+                {formatINR(data.total_potential_savings_inr)}/mo
+              </div>
+            </div>
+          </div>
+
+          {/* Controls & Actions */}
+          <div className="flex flex-wrap items-center gap-space-sm">
+            <div className="flex items-center gap-1 p-1 rounded-xl glass-well">
+              {(['ALL', 'in-mumbai-1', 'in-bangalore-1', 'in-noida-1'] as const).map((reg) => (
+                <button
+                  key={reg}
+                  type="button"
+                  onClick={() => {
+                    setRegionFilter(reg);
+                    setPage(1);
+                  }}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-mono font-medium transition-all ${
+                    regionFilter === reg
+                      ? 'bg-white text-[#111318] font-semibold shadow-2xs border border-black/[0.06]'
+                      : 'text-[#4A505C] hover:text-[#111318]'
+                  }`}
+                >
+                  {reg === 'ALL' ? 'All Regions' : reg}
+                </button>
+              ))}
+            </div>
+
+            {onOpenExportModal && (
+              <button
+                type="button"
+                onClick={onOpenExportModal}
+                className="inline-flex items-center px-space-md py-1.5 rounded-xl bg-[#111318] hover:bg-[#232730] text-white font-body-sm text-body-sm font-medium shadow-xs transition-all"
+              >
+                Export Report
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* 2. PRIORITY OPTIMIZATION CARDS (Minimalist Frosted Glass + Blended Status Badges) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-space-md">
+        {/* Card 1: Unused Storage Volumes & IPs (Status Red: Active Leak) */}
+        <div className="glass-card rounded-2xl p-space-lg flex flex-col justify-between transition-all hover:bg-white/85">
+          <div>
+            <div className="flex items-center justify-between gap-space-sm mb-space-sm">
+              <span className="px-2.5 py-1 rounded-md status-red font-label-caps text-label-caps uppercase font-semibold tracking-wider">
+                Storage Leak
+              </span>
+              <span className="font-tabular-numeric-md text-tabular-numeric-md text-[#1D5C46] font-semibold">
+                -{formatINR(orphanTotalSavings)}/mo
+              </span>
+            </div>
+            <h3 className="font-headline-md text-headline-md text-[#111318] mb-1 font-semibold">
+              Unused Storage Volumes &amp; IPs
+            </h3>
+            <p className="font-body-sm text-body-sm text-[#4A505C] mb-space-md leading-relaxed">
+              {orphanRecs.length} unattached block SSD volumes and static IPv4 addresses found. Snapshots confirmed available; unmounted for &gt;30 consecutive days.
+            </p>
+          </div>
+          <div className="pt-space-sm border-t border-black/[0.05] flex items-center justify-between">
+            <span className="font-code-sm text-code-sm text-[#767D8C]">
+              {orphanRecs.length} assets · {orphanPendingCount} pending
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                if (orphanPendingCount > 0 && onAcceptCategory) {
+                  onAcceptCategory('orphan');
+                } else {
+                  handleSelectCategory('STORAGE');
+                }
+              }}
+              className="px-3 py-1.5 rounded-xl bg-[#111318] hover:bg-[#252A34] text-white font-body-sm text-body-sm font-medium transition-all shadow-2xs"
+            >
+              {orphanPendingCount > 0 ? `Review & Purge (${orphanPendingCount})` : 'Inspect Storage'}
+            </button>
+          </div>
         </div>
 
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={() => onNavigateToRecommendations()}
-            className="flex items-center space-x-1.5 rounded-md border border-emerald-500/30 bg-emerald-950/30 px-3 py-1.5 text-xs font-medium text-emerald-400 hover:bg-emerald-900/40 transition-colors shadow-xs"
+        {/* Card 2: Idle Weekend & Night Servers (Status Yellow: Off-Hours Standby) */}
+        <div className="glass-card rounded-2xl p-space-lg flex flex-col justify-between transition-all hover:bg-white/85">
+          <div>
+            <div className="flex items-center justify-between gap-space-sm mb-space-sm">
+              <span className="px-2.5 py-1 rounded-md status-yellow font-label-caps text-label-caps uppercase font-semibold tracking-wider">
+                Idle Fleet
+              </span>
+              <span className="font-tabular-numeric-md text-tabular-numeric-md text-[#1D5C46] font-semibold">
+                -{formatINR(offHoursTotalSavings)}/mo
+              </span>
+            </div>
+            <h3 className="font-headline-md text-headline-md text-[#111318] mb-1 font-semibold">
+              Idle Weekend &amp; Night Servers
+            </h3>
+            <p className="font-body-sm text-body-sm text-[#4A505C] mb-space-md leading-relaxed">
+              {offHoursRecs.length} non-production dev and staging instances with 0–4% CPU activity from 20:00 to 08:00 IST and weekends (118 hrs/wk).
+            </p>
+          </div>
+          <div className="pt-space-sm border-t border-black/[0.05] flex items-center justify-between">
+            <span className="font-code-sm text-code-sm text-[#767D8C]">
+              {offHoursRecs.length} QA / Staging / Dev nodes
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                if (offHoursPendingCount > 0 && onAcceptCategory) {
+                  onAcceptCategory('off_hours');
+                } else {
+                  onNavigateToRecommendations('OFF_HOURS');
+                }
+              }}
+              className="px-3 py-1.5 rounded-xl bg-[#111318] hover:bg-[#252A34] text-white font-body-sm text-body-sm font-medium transition-all shadow-2xs"
+            >
+              {offHoursPendingCount > 0 ? `Schedule Auto-Stop (${offHoursPendingCount})` : 'View Schedules'}
+            </button>
+          </div>
+        </div>
+
+        {/* Card 3: Oversized Production Servers (Status Green: Verified Safe Right-Sizing) */}
+        <div className="glass-card rounded-2xl p-space-lg flex flex-col justify-between transition-all hover:bg-white/85">
+          <div>
+            <div className="flex items-center justify-between gap-space-sm mb-space-sm">
+              <span className="px-2.5 py-1 rounded-md status-green font-label-caps text-label-caps uppercase font-semibold tracking-wider">
+                Right-Sizing Ready
+              </span>
+              <span className="font-tabular-numeric-md text-tabular-numeric-md text-[#1D5C46] font-semibold">
+                -{formatINR(rightsizeTotalSavings)}/mo
+              </span>
+            </div>
+            <h3 className="font-headline-md text-headline-md text-[#111318] mb-1 font-semibold">
+              Oversized Production Servers
+            </h3>
+            <p className="font-body-sm text-body-sm text-[#4A505C] mb-space-md leading-relaxed">
+              {rightsizeRecs.length} compute units safely eligible for tier downsizing under p95/p99 headroom rules ({data.protected_peak_vms_count} bursty VMs protected).
+            </p>
+          </div>
+          <div className="pt-space-sm border-t border-black/[0.05] flex items-center justify-between">
+            <span className="font-code-sm text-code-sm text-[#767D8C]">
+              {rightsizeRecs.length} Utho compute clusters
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                if (rightsizePendingCount > 0 && onAcceptCategory) {
+                  onAcceptCategory('rightsize');
+                } else {
+                  onNavigateToRecommendations('RIGHTSIZE_VM');
+                }
+              }}
+              className="px-3 py-1.5 rounded-xl bg-[#111318] hover:bg-[#252A34] text-white font-body-sm text-body-sm font-medium transition-all shadow-2xs"
+            >
+              {rightsizePendingCount > 0 ? `Apply Right-Sizing (${rightsizePendingCount})` : 'Review Plan'}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. MAIN SPLIT LAYOUT: DATA TABLE (8 COLS) + RESOURCE INSPECTION DRAWER (4 COLS) */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-space-lg items-start">
+        {/* LEFT 8 COLS: Resource Table Section */}
+        <div className="xl:col-span-8 flex flex-col glass-card rounded-2xl overflow-hidden">
+          {/* Table Header & Filter Bar */}
+          <div className="p-space-md flex flex-col gap-space-sm border-b border-black/[0.06]">
+            <div className="flex flex-wrap items-center justify-between gap-space-sm">
+              {/* Category Tabs */}
+              <div className="flex items-center gap-1 p-1 glass-well rounded-xl overflow-x-auto">
+                <button
+                  type="button"
+                  onClick={() => handleSelectCategory('ALL')}
+                  className={`px-space-sm py-1 rounded-lg font-body-sm text-body-sm font-medium transition-all ${
+                    categoryTab === 'ALL'
+                      ? 'text-[#111318] bg-white font-semibold shadow-2xs border border-black/[0.06]'
+                      : 'text-[#4A505C] hover:text-[#111318]'
+                  }`}
+                >
+                  All Resources{' '}
+                  <span className="text-[#767D8C] font-code-sm text-code-sm ml-1">{countAll}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSelectCategory('FLAGGED')}
+                  className={`px-space-sm py-1 rounded-lg font-body-sm text-body-sm font-medium transition-all ${
+                    categoryTab === 'FLAGGED'
+                      ? 'text-[#111318] bg-white font-semibold shadow-2xs border border-black/[0.06]'
+                      : 'text-[#4A505C] hover:text-[#111318]'
+                  }`}
+                >
+                  Flagged{' '}
+                  <span className="px-1.5 py-0.5 rounded status-yellow text-[10px] font-mono font-semibold ml-1">
+                    {countFlagged}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSelectCategory('PROTECTED')}
+                  className={`px-space-sm py-1 rounded-lg font-body-sm text-body-sm font-medium transition-all ${
+                    categoryTab === 'PROTECTED'
+                      ? 'text-[#111318] bg-white font-semibold shadow-2xs border border-black/[0.06]'
+                      : 'text-[#4A505C] hover:text-[#111318]'
+                  }`}
+                >
+                  Peak Protected{' '}
+                  <span className="px-1.5 py-0.5 rounded glass-pill-neutral text-[10px] font-mono font-semibold ml-1">
+                    {countProtected}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSelectCategory('COMPUTE')}
+                  className={`px-space-sm py-1 rounded-lg font-body-sm text-body-sm font-medium transition-all ${
+                    categoryTab === 'COMPUTE'
+                      ? 'text-[#111318] bg-white font-semibold shadow-2xs border border-black/[0.06]'
+                      : 'text-[#4A505C] hover:text-[#111318]'
+                  }`}
+                >
+                  Compute ({countCompute})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSelectCategory('STORAGE')}
+                  className={`px-space-sm py-1 rounded-lg font-body-sm text-body-sm font-medium transition-all ${
+                    categoryTab === 'STORAGE'
+                      ? 'text-[#111318] bg-white font-semibold shadow-2xs border border-black/[0.06]'
+                      : 'text-[#4A505C] hover:text-[#111318]'
+                  }`}
+                >
+                  Storage &amp; IPs ({countStorage})
+                </button>
+              </div>
+
+              {/* Environment Filter + Record Count */}
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 p-0.5 glass-well rounded-xl text-[11px] font-mono">
+                  {(['ALL', 'prod', 'staging', 'dev'] as const).map((env) => (
+                    <button
+                      key={env}
+                      type="button"
+                      onClick={() => {
+                        setEnvFilter(env);
+                        setPage(1);
+                      }}
+                      className={`px-2 py-0.5 rounded-lg uppercase font-medium transition-all ${
+                        envFilter === env
+                          ? 'bg-white text-[#111318] font-semibold shadow-2xs border border-black/[0.06]'
+                          : 'text-[#4A505C] hover:text-[#111318]'
+                      }`}
+                    >
+                      {env}
+                    </button>
+                  ))}
+                </div>
+                <span className="text-[#767D8C] font-code-sm text-code-sm hidden sm:inline">
+                  Showing {visibleResources.length} of {filteredResources.length}
+                </span>
+              </div>
+            </div>
+
+            {/* Search Input */}
+            <div className="relative w-full">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setPage(1);
+                }}
+                placeholder="Search by resource name, ID, hardware spec (e.g. m8.xlarge), region, or team..."
+                className="w-full h-9 px-space-md rounded-xl glass-well font-body-sm text-body-sm text-[#111318] placeholder:text-[#767D8C] focus:outline-none focus:bg-white/90 focus:border-black/[0.15] transition-all"
+              />
+            </div>
+          </div>
+
+          {/* Tabular Dataset */}
+          <div
+            tabIndex={0}
+            role="region"
+            aria-label="Cloud Spending Resource Utilization Table"
+            className="table-wrapper"
           >
-            <Zap className="h-3.5 w-3.5" />
-            <span>Open Action Plan Ledger</span>
-          </button>
+            <table className="w-full text-left font-body-sm text-body-sm">
+              <thead>
+                <tr className="bg-[#ECEEF2]/90 backdrop-blur-md text-[#767D8C] font-label-caps text-label-caps uppercase border-b border-black/[0.06]">
+                  <th className="py-2.5 px-space-md">Resource &amp; Hardware Spec</th>
+                  <th className="py-2.5 px-space-sm">Environment</th>
+                  <th className="py-2.5 px-space-md">Avg / Peak</th>
+                  <th className="py-2.5 px-space-md">Recommendation</th>
+                  <th className="py-2.5 px-space-md text-right">Monthly Spend</th>
+                  <th className="py-2.5 px-space-sm text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-black/[0.05]">
+                {visibleResources.map((item) => {
+                  const isSelected = activeResource?.id === item.id;
+                  const rec = recByResourceId.get(item.id);
+                  return (
+                    <tr
+                      key={item.id}
+                      onClick={() => onSelectResourceForDrawer(item.id, false)}
+                      className={`cursor-pointer transition-colors ${
+                        isSelected
+                          ? 'bg-black/[0.045] hover:bg-black/[0.065]'
+                          : 'hover:bg-white/60'
+                      }`}
+                    >
+                      <td className="py-3 px-space-md">
+                        <div>
+                          <div className="font-code-sm text-code-sm font-semibold text-[#111318]">
+                            {item.name}
+                          </div>
+                          <div className="text-[#767D8C] text-[11px] font-code-sm mt-0.5">
+                            {formatHardwareSpec(item)}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3 px-space-sm whitespace-nowrap">
+                        {renderEnvBadge(item.env)}
+                      </td>
+                      <td className="py-3 px-space-md font-tabular-numeric-md text-tabular-numeric-md whitespace-nowrap">
+                        {renderAvgPeakCell(item)}
+                      </td>
+                      <td className="py-3 px-space-md">
+                        {renderRecommendationText(item, rec)}
+                      </td>
+                      <td className="py-3 px-space-md text-right font-tabular-numeric-md text-tabular-numeric-md font-semibold text-[#111318] whitespace-nowrap">
+                        {formatINR(item.monthly_cost_inr)}
+                      </td>
+                      <td className="py-3 px-space-sm text-center whitespace-nowrap">
+                        {renderRowActionButton(item, rec)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Table Footer Meta & Pagination */}
+          <div className="p-space-md border-t border-black/[0.06] bg-white/40 flex flex-wrap items-center justify-between gap-2 text-[#767D8C] font-body-sm text-body-sm">
+            <span className="font-code-sm text-code-sm text-[#4A505C]">
+              Total {recommendations.length} recommendations yield{' '}
+              <strong className="text-[#1D5C46]">
+                {formatINR(data.total_potential_savings_inr)}/mo
+              </strong>{' '}
+              net saving ({formatINR(data.accepted_monthly_savings_inr)}/mo committed)
+            </span>
+
+            <div className="flex items-center gap-space-xs">
+              <button
+                type="button"
+                onClick={() => setShowAllRows(!showAllRows)}
+                className="px-2.5 py-1 rounded-lg bg-white/80 border border-black/[0.07] text-[#111318] text-xs font-medium hover:bg-white transition-all"
+              >
+                {showAllRows ? 'Paginate (12/page)' : `Show All (${filteredResources.length})`}
+              </button>
+              {!showAllRows && (
+                <>
+                  <button
+                    type="button"
+                    disabled={page <= 1}
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    className="px-2.5 py-1 rounded-lg bg-white/80 border border-black/[0.07] text-[#111318] text-xs font-medium disabled:opacity-40"
+                  >
+                    Previous
+                  </button>
+                  <span className="font-code-sm text-xs px-1.5 text-[#111318]">
+                    {page} / {totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={page >= totalPages}
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    className="px-2.5 py-1 rounded-lg bg-white/80 border border-black/[0.07] text-[#111318] text-xs font-medium disabled:opacity-40"
+                  >
+                    Next
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* RIGHT 4 COLS: Resource Inspection Drawer (Frosted Glass + Blended Status) */}
+        <div className="xl:col-span-4 flex flex-col glass-card rounded-2xl p-space-lg">
+          {activeResource && (
+            <>
+              {/* Drawer Header */}
+              <div className="flex items-start justify-between mb-space-md">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-label-caps text-label-caps uppercase text-[#767D8C] font-semibold">
+                      Resource Inspection
+                    </span>
+                    <span
+                      className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold uppercase ${
+                        activeResource.optimization_status === 'PROTECTED_PEAK_LOAD'
+                          ? 'status-yellow'
+                          : activeResource.optimization_status === 'ORPHANED'
+                          ? 'status-red'
+                          : 'status-green'
+                      }`}
+                    >
+                      {activeResource.optimization_status === 'PROTECTED_PEAK_LOAD'
+                        ? 'Peak Protected'
+                        : activeResource.optimization_status === 'ORPHANED'
+                        ? 'Orphaned'
+                        : 'Active'}
+                    </span>
+                  </div>
+                  <h2 className="font-headline-md text-headline-md text-[#111318] font-semibold">
+                    {activeResource.name}
+                  </h2>
+                  <span className="font-code-sm text-code-sm text-[#767D8C]">
+                    {activeResource.id} · {activeResource.region} · {activeResource.team || 'Platform'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onSelectResourceForDrawer(activeResource.id, true)}
+                  className="text-white bg-[#111318] hover:bg-[#252A34] font-body-sm text-xs font-medium px-3 py-1 rounded-lg transition-all shadow-2xs"
+                >
+                  Full Audit
+                </button>
+              </div>
+
+              {/* Spec & Savings Delta Grid */}
+              <div className="grid grid-cols-2 gap-space-sm p-space-md rounded-xl glass-well mb-space-md">
+                <div>
+                  <span className="font-label-caps text-label-caps text-[#767D8C] uppercase block mb-1">
+                    Current Spec
+                  </span>
+                  <span className="font-body-sm text-body-sm font-semibold text-[#111318] block">
+                    {activeResource.type === 'vm'
+                      ? `${activeResource.vcpu ?? 4} vCPU, ${activeResource.ram_gb ?? 16} GB`
+                      : activeResource.disk_gb
+                      ? `${activeResource.disk_gb} GB SSD`
+                      : 'Elastic IPv4'}
+                  </span>
+                  <span className="font-code-sm text-code-sm text-[#767D8C] block">
+                    {activeResource.plan || activeResource.current_spec || activeResource.type}
+                  </span>
+                </div>
+                <div>
+                  <span className="font-label-caps text-label-caps text-[#767D8C] uppercase block mb-1">
+                    Target Spec
+                  </span>
+                  <span className="font-body-sm text-body-sm font-semibold text-[#111318] block">
+                    {activeRec
+                      ? activeRec.recommended_config || activeRec.target_spec || 'Optimized Plan'
+                      : activeResource.optimization_status === 'PROTECTED_PEAK_LOAD'
+                      ? 'Keep Current Tier'
+                      : 'Right-Sized'}
+                  </span>
+                  <span className="font-code-sm text-code-sm text-[#767D8C] block">
+                    {activeRec ? activeRec.action_type : 'SLA Verified'}
+                  </span>
+                </div>
+                <div>
+                  <span className="font-label-caps text-label-caps text-[#767D8C] uppercase block mb-1">
+                    Spend Impact
+                  </span>
+                  <span className="font-tabular-numeric-md text-tabular-numeric-md text-[#111318] font-medium">
+                    {formatINR(currentCostInr)} → {formatINR(targetCostInr)}
+                  </span>
+                </div>
+                <div>
+                  <span className="font-label-caps text-label-caps text-[#767D8C] uppercase block mb-1">
+                    Est. Savings
+                  </span>
+                  <span className="font-tabular-numeric-md text-tabular-numeric-md text-[#1D5C46] font-semibold">
+                    {savingsInr > 0
+                      ? `${formatINR(savingsInr)} (${savingsPct}%)`
+                      : '₹0 (SLA Guard)'}
+                  </span>
+                </div>
+              </div>
+
+              {/* SVG Utilization Chart (30-Day Trend — Minimalist Graphite & Mineral Sage) */}
+              <div className="mb-space-md">
+                <div className="flex items-center justify-between mb-space-xs">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-label-caps text-label-caps text-[#767D8C] uppercase">
+                      30-Day Telemetry
+                    </span>
+                    <div className="inline-flex rounded-lg glass-well p-0.5 text-[10px] font-mono">
+                      <button
+                        type="button"
+                        onClick={() => setDrawerMetric('cpu')}
+                        className={`px-2 py-0.5 rounded-md font-semibold transition-all ${
+                          drawerMetric === 'cpu'
+                            ? 'bg-white text-[#111318] shadow-2xs'
+                            : 'text-[#4A505C]'
+                        }`}
+                      >
+                        CPU
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDrawerMetric('mem')}
+                        className={`px-2 py-0.5 rounded-md font-semibold transition-all ${
+                          drawerMetric === 'mem'
+                            ? 'bg-white text-[#111318] shadow-2xs'
+                            : 'text-[#4A505C]'
+                        }`}
+                      >
+                        RAM
+                      </button>
+                    </div>
+                  </div>
+                  <span className="font-code-sm text-code-sm text-[#4A505C]">
+                    Peak: {drawerChartGeometry.peakVal}% · Avg: {drawerChartGeometry.avgVal}%
+                  </span>
+                </div>
+
+                <div className="w-full glass-well rounded-xl p-space-sm">
+                  <svg className="w-full h-36" preserveAspectRatio="none" viewBox="0 0 340 140">
+                    <defs>
+                      <linearGradient id="minimalGlassGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#236B52" stopOpacity="0.28" />
+                        <stop offset="100%" stopColor="#236B52" stopOpacity="0.02" />
+                      </linearGradient>
+                    </defs>
+                    <line
+                      stroke="rgba(17,19,24,0.08)"
+                      strokeDasharray="2,2"
+                      x1="30"
+                      x2="330"
+                      y1="20"
+                      y2="20"
+                    />
+                    <line
+                      stroke="rgba(17,19,24,0.08)"
+                      strokeDasharray="2,2"
+                      x1="30"
+                      x2="330"
+                      y1="50"
+                      y2="50"
+                    />
+                    <line
+                      stroke="rgba(17,19,24,0.08)"
+                      strokeDasharray="2,2"
+                      x1="30"
+                      x2="330"
+                      y1="80"
+                      y2="80"
+                    />
+                    <line
+                      stroke="rgba(17,19,24,0.12)"
+                      x1="30"
+                      x2="330"
+                      y1="110"
+                      y2="110"
+                    />
+                    <text fill="#767D8C" fontSize="9" textAnchor="end" x="24" y="24">
+                      100%
+                    </text>
+                    <text fill="#767D8C" fontSize="9" textAnchor="end" x="24" y="54">
+                      50%
+                    </text>
+                    <text fill="#767D8C" fontSize="9" textAnchor="end" x="24" y="84">
+                      25%
+                    </text>
+                    <text fill="#767D8C" fontSize="9" textAnchor="end" x="24" y="114">
+                      0%
+                    </text>
+                    <line
+                      stroke="#94601B"
+                      strokeDasharray="3,3"
+                      strokeWidth="1.25"
+                      x1="30"
+                      x2="330"
+                      y1={drawerChartGeometry.peakY}
+                      y2={drawerChartGeometry.peakY}
+                    />
+                    <text
+                      fill="#7C4F14"
+                      fontSize="10"
+                      fontWeight="600"
+                      x="245"
+                      y={Math.max(16, drawerChartGeometry.peakY - 5)}
+                    >
+                      Peak {drawerChartGeometry.peakVal}%
+                    </text>
+                    <polygon fill="url(#minimalGlassGrad)" points={drawerChartGeometry.polygon} />
+                    <polyline
+                      fill="none"
+                      points={drawerChartGeometry.polyline}
+                      stroke="#1D5C46"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                    />
+                    <circle
+                      cx={drawerChartGeometry.peakX}
+                      cy={drawerChartGeometry.peakY}
+                      fill="#1D5C46"
+                      r="3.5"
+                      stroke="#ffffff"
+                      strokeWidth="1.5"
+                    />
+                  </svg>
+                </div>
+
+                <div className="flex items-center justify-between text-[11px] text-[#767D8C] mt-1.5 px-1 font-body-sm">
+                  <span>Actual {drawerMetric.toUpperCase()} (%)</span>
+                  <span>85% Peak-Safety Governor Ceiling</span>
+                </div>
+              </div>
+
+              {/* Engine & Python AI (:8001) Assessment Narrative */}
+              <div className="p-space-md rounded-xl glass-well mb-space-md space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[#111318] font-headline-md text-[13px] font-semibold">
+                    Engine &amp; AI Telemetry Assessment
+                  </span>
+                  <span className="px-2 py-0.5 rounded-md glass-pill-neutral text-[10px] font-mono font-medium">
+                    {activeEng.provider || 'Go + AI :8001'}
+                  </span>
+                </div>
+                <p className="font-body-sm text-body-sm text-[#4A505C] leading-relaxed">
+                  {activeEng.technical_explanation ||
+                    activeEng.peak_headroom_proof ||
+                    activeResource.status_reason ||
+                    'Continuous 30-day telemetry evaluated against p95/p99 safety headroom governor.'}
+                </p>
+
+                {/* Blended Status & Neutral Pills */}
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {activeEng.jev_assessment && (
+                    <span
+                      className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold ${
+                        activeEng.jev_assessment.risk_score_percentage > 60
+                          ? 'status-red'
+                          : activeEng.jev_assessment.risk_score_percentage > 30
+                          ? 'status-yellow'
+                          : 'status-green'
+                      }`}
+                    >
+                      Jev Risk: {activeEng.jev_assessment.risk_score_percentage}%
+                    </span>
+                  )}
+                  {activeEng.workload_classification && (
+                    <span className="px-2 py-0.5 rounded-md glass-pill-neutral text-[10px] font-mono font-medium">
+                      {activeEng.workload_classification}
+                    </span>
+                  )}
+                  {activeEng.greenops_impact && (
+                    <span className="px-2 py-0.5 rounded-md status-green text-[10px] font-mono font-semibold">
+                      -{activeEng.greenops_impact.estimated_carbon_saved_kg_co2e} kg CO2e
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Drawer Action Buttons */}
+              <div className="flex items-center gap-space-sm mt-auto pt-space-xs">
+                <button
+                  type="button"
+                  onClick={() => onSelectResourceForDrawer(activeResource.id, true)}
+                  className="w-1/3 py-2 px-space-sm rounded-xl glass-well hover:bg-black/[0.06] text-[#111318] font-body-sm text-body-sm font-medium transition-all text-center"
+                >
+                  Deep Trace
+                </button>
+                {activeRec ? (
+                  <button
+                    type="button"
+                    onClick={() => onAcceptRecommendation?.(activeRec.id)}
+                    className={`w-2/3 py-2 px-space-sm rounded-xl font-body-sm text-body-sm font-semibold transition-all text-center ${
+                      activeRec.status === 'accepted'
+                        ? 'status-green'
+                        : 'bg-[#111318] hover:bg-[#232730] text-white shadow-xs'
+                    }`}
+                  >
+                    {activeRec.status === 'accepted'
+                      ? 'Approved for Terraform PR'
+                      : 'Apply via Terraform PR'}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => onSelectResourceForDrawer(activeResource.id, true)}
+                    className="w-2/3 py-2 px-space-sm rounded-xl bg-[#111318] hover:bg-[#232730] text-white font-body-sm text-body-sm font-semibold shadow-xs transition-all text-center"
+                  >
+                    View SLA Protection Proof
+                  </button>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Monday Morning 3-Step Runbook Strip */}
-      {recommendations.length > 0 && (
-        <MondayRunbookStrip
-          recommendations={recommendations}
-          protectedCount={data.protected_peak_vms_count}
-          onAcceptCategory={handleCategoryAction}
-          onFilterRightsizing={() => onNavigateToRecommendations('RIGHTSIZE_VM')}
-        />
-      )}
-
-      {/* KPI Cards Ribbon */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        {/* Current Run-rate */}
-        <div className="rounded-lg border border-zinc-800 bg-zinc-900/80 p-4 shadow-sm hover:border-zinc-700 transition-colors">
-          <div className="flex items-center justify-between text-zinc-400">
-            <span className="text-xs font-medium uppercase tracking-wider">Current Monthly Spend</span>
-            <TrendingUp className="h-4 w-4 text-rose-400" />
-          </div>
-          <div className="mt-2 flex items-baseline justify-between">
-            <div className="font-mono text-xl font-bold text-zinc-100">
-              {formatINR(data.current_monthly_spend_inr)}
-            </div>
-            <span className="flex items-center text-[11px] font-mono font-medium text-rose-400">
-              <ArrowUpRight className="h-3 w-3 mr-0.5" />
-              +{data.bill_growth_6m_pct}%
-            </span>
-          </div>
-          <div className="mt-1 text-[11px] text-zinc-400">Past 6 months unmanaged sprawl</div>
-        </div>
-
-        {/* Projected Spend */}
-        <div className="rounded-lg border border-zinc-800 bg-zinc-900/80 p-4 shadow-sm hover:border-zinc-700 transition-colors">
-          <div className="flex items-center justify-between text-zinc-400">
-            <span className="text-xs font-medium uppercase tracking-wider">Projected Spend</span>
-            <Layers className="h-4 w-4 text-emerald-400" />
-          </div>
-          <div className="mt-2 flex items-baseline justify-between">
-            <div className="font-mono text-xl font-bold text-emerald-400">
-              {formatINR(data.projected_monthly_spend_inr)}
-            </div>
-            <span className="flex items-center text-[11px] font-mono font-medium text-emerald-400">
-              <ArrowDownRight className="h-3 w-3 mr-0.5" />
-              -{data.accepted_savings_pct}%
-            </span>
-          </div>
-          <div className="mt-1 text-[11px] text-zinc-400">Target run-rate post accepted changes</div>
-        </div>
-
-        {/* Net Monthly Savings */}
-        <div className="rounded-lg border border-emerald-500/20 bg-emerald-950/15 p-4 shadow-sm hover:border-emerald-500/30 transition-colors">
-          <div className="flex items-center justify-between text-emerald-400/80">
-            <span className="text-xs font-medium uppercase tracking-wider text-emerald-400">Committed Savings</span>
-            <Zap className="h-4 w-4 text-emerald-400" />
-          </div>
-          <div className="mt-2 flex items-baseline justify-between">
-            <div className="font-mono text-xl font-bold text-emerald-400">
-              {formatINR(data.accepted_monthly_savings_inr)}
-              <span className="text-xs font-normal text-emerald-500/70">/mo</span>
-            </div>
-          </div>
-          <div className="mt-1 text-[11px] text-emerald-500/70 font-mono">
-            {formatINR(data.total_potential_savings_inr)} total pipeline potential
-          </div>
-        </div>
-
-        {/* Protected Peak Workloads */}
-        <div
-          onClick={() => onNavigateToInventory('PROTECTED_PEAK_LOAD')}
-          className="cursor-pointer rounded-lg border border-cyan-500/20 bg-cyan-950/15 p-4 shadow-sm hover:border-cyan-500/40 transition-colors"
-        >
-          <div className="flex items-center justify-between text-cyan-400/80">
-            <span className="text-xs font-medium uppercase tracking-wider text-cyan-400">Protected Peak VMs</span>
-            <ShieldCheck className="h-4 w-4 text-cyan-400" />
-          </div>
-          <div className="mt-2 flex items-baseline justify-between">
-            <div className="font-mono text-xl font-bold text-cyan-300">
-              {data.protected_peak_vms_count} Workloads
-            </div>
-            <span className="rounded bg-cyan-500/20 px-1.5 py-0.5 text-[10px] font-mono text-cyan-300 border border-cyan-500/30">
-              Governor Active
-            </span>
-          </div>
-          <div className="mt-1 text-[11px] text-cyan-400/70">
-            Downsizing blocked to protect latency SLAs
-          </div>
-        </div>
-
-        {/* Active Capacity & Waste Alerts */}
-        <div
-          onClick={onNavigateToAlerts}
-          className="cursor-pointer rounded-lg border border-rose-500/20 bg-rose-950/15 p-4 shadow-sm hover:border-rose-500/40 transition-colors"
-        >
-          <div className="flex items-center justify-between text-rose-400/80">
-            <span className="text-xs font-medium uppercase tracking-wider text-rose-400">Capacity & Waste Alerts</span>
-            <AlertTriangle className="h-4 w-4 text-rose-400" />
-          </div>
-          <div className="mt-2 flex items-baseline justify-between">
-            <div className="font-mono text-xl font-bold text-rose-300">
-              {data.active_alerts_count} Active
-            </div>
-            <span className="rounded bg-rose-500/20 px-1.5 py-0.5 text-[10px] font-mono text-rose-300 border border-rose-500/30">
-              Needs Attention
-            </span>
-          </div>
-          <div className="mt-1 text-[11px] text-rose-400/70">
-            Memory leak + forgotten nodes
-          </div>
-        </div>
-      </div>
-
-      {/* Compact AI Intelligence & Multi-Horizon Cost Forecaster (Python AI :8001) */}
-      <div className="rounded-lg border border-zinc-800 bg-zinc-900/90 p-4 shadow-sm">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+      {/* 4. PYTHON AI (:8001) ROLE BRIEFING & MULTI-HORIZON COST FORECASTER */}
+      <div className="glass-card rounded-2xl p-space-lg">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-space-lg">
           {/* Left 7 Cols: Role-Based AI Briefing */}
-          <div className="lg:col-span-7 space-y-3 lg:border-r lg:border-zinc-800 lg:pr-5">
+          <div className="lg:col-span-7 space-y-3 lg:border-r lg:border-black/[0.06] lg:pr-6">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center space-x-2">
-                <Cpu className="h-4 w-4 text-emerald-400" />
-                <span className="text-xs font-semibold uppercase tracking-wider text-zinc-200 font-mono">
-                  AI Role Briefing ({briefing?.provider || 'Python-AI-Service :8001'})
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-md glass-pill-neutral font-label-caps text-label-caps uppercase font-semibold">
+                  AI Briefing
+                </span>
+                <span className="font-headline-md text-headline-md text-[#111318] font-semibold">
+                  Role-Based Telemetry Synthesis
                 </span>
               </div>
 
-              <div className="flex items-center rounded-md border border-zinc-800 bg-zinc-950 p-0.5 font-mono text-[11px]">
+              <div className="flex items-center gap-1 p-1 rounded-xl glass-well">
                 {(['executive', 'finance', 'engineering'] as const).map((r) => (
                   <button
                     key={r}
                     type="button"
                     onClick={() => setBriefingRole(r)}
-                    className={`rounded px-2.5 py-1 capitalize transition-colors ${
+                    className={`px-3 py-1 rounded-lg text-xs font-medium capitalize transition-all ${
                       briefingRole === r
-                        ? 'bg-zinc-800 text-emerald-400 font-semibold'
-                        : 'text-zinc-400 hover:text-zinc-200'
+                        ? 'bg-white text-[#111318] font-semibold shadow-2xs border border-black/[0.06]'
+                        : 'text-[#4A505C] hover:text-[#111318]'
                     }`}
                   >
                     {r}
@@ -268,27 +1264,26 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
             {briefing && (
               <>
-                <p className="text-xs font-medium text-zinc-100 leading-snug">
+                <p className="font-body-md text-body-md font-semibold text-[#111318]">
                   {briefing.headline}
                 </p>
 
-                <ul className="space-y-1 text-[11px] text-zinc-300 font-mono">
+                <ul className="space-y-1.5 font-body-sm text-body-sm text-[#4A505C]">
                   {(briefing.bullet_points || []).slice(0, 3).map((pt, idx) => (
-                    <li key={idx} className="flex items-start space-x-1.5 leading-snug">
-                      <span className="text-emerald-400 shrink-0">▸</span>
-                      <span>{pt}</span>
+                    <li key={idx} className="p-2.5 rounded-xl glass-well">
+                      {pt}
                     </li>
                   ))}
                 </ul>
 
-                <div className="flex flex-wrap items-center gap-2 pt-1 font-mono">
+                <div className="flex flex-wrap items-center gap-2 pt-1">
                   {(briefing.key_metrics || []).map((pill, i) => (
                     <div
                       key={i}
-                      className="rounded border border-emerald-500/30 bg-emerald-950/20 px-2.5 py-1 text-[10px] text-emerald-300"
+                      className="px-3 py-1 rounded-lg glass-well text-[#111318] text-xs font-mono"
                     >
-                      <span className="text-zinc-400 mr-1.5">{pill.label}:</span>
-                      <span className="font-bold">{pill.value}</span>
+                      <span className="text-[#767D8C] mr-1.5">{pill.label}:</span>
+                      <span className="font-semibold text-[#111318]">{pill.value}</span>
                     </div>
                   ))}
                 </div>
@@ -297,25 +1292,27 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
 
           {/* Right 5 Cols: Multi-Horizon Component Cost Forecaster (30d / 60d / 90d) */}
-          <div className="lg:col-span-5 space-y-3 flex flex-col justify-between font-mono">
+          <div className="lg:col-span-5 flex flex-col justify-between space-y-3">
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-1.5">
-                <Calendar className="h-3.5 w-3.5 text-cyan-400" />
-                <span className="text-xs font-semibold uppercase tracking-wider text-zinc-200">
+              <div>
+                <span className="font-headline-md text-headline-md text-[#111318] font-semibold block">
                   Multi-Horizon Cost Forecaster
+                </span>
+                <span className="font-code-sm text-code-sm text-[#767D8C]">
+                  Component projection across VM, SSD &amp; IPv4
                 </span>
               </div>
 
-              <div className="flex items-center rounded-md border border-zinc-800 bg-zinc-950 p-0.5 text-[11px]">
+              <div className="flex items-center gap-1 p-1 rounded-xl glass-well font-mono text-xs">
                 {([30, 60, 90] as const).map((d) => (
                   <button
                     key={d}
                     type="button"
                     onClick={() => setHorizonDays(d)}
-                    className={`rounded px-2 py-0.5 transition-colors ${
+                    className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
                       horizonDays === d
-                        ? 'bg-zinc-800 text-cyan-300 font-bold'
-                        : 'text-zinc-400 hover:text-zinc-200'
+                        ? 'bg-white text-[#111318] font-semibold shadow-2xs border border-black/[0.06]'
+                        : 'text-[#4A505C] hover:text-[#111318]'
                     }`}
                   >
                     {d}d
@@ -326,45 +1323,42 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
             {aiForecast && (
               <>
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="rounded border border-zinc-800 bg-zinc-950 p-2">
-                    <span className="text-[10px] uppercase text-zinc-500 block">
+                <div className="grid grid-cols-3 gap-2.5">
+                  <div className="p-3 rounded-xl glass-well">
+                    <span className="font-label-caps text-label-caps uppercase text-[#767D8C] block">
                       {horizonDays}d Baseline
                     </span>
-                    <span className="text-xs font-bold text-zinc-200">
+                    <span className="font-tabular-numeric-md text-tabular-numeric-md font-semibold text-[#111318] mt-1 block">
                       {formatINR(aiForecast.current_cost_inr.total)}
                     </span>
                   </div>
-                  <div className="rounded border border-zinc-800 bg-zinc-950 p-2">
-                    <span className="text-[10px] uppercase text-zinc-500 block">
+                  <div className="p-3 rounded-xl glass-well">
+                    <span className="font-label-caps text-label-caps uppercase text-[#767D8C] block">
                       {horizonDays}d Optimized
                     </span>
-                    <span className="text-xs font-bold text-emerald-400">
+                    <span className="font-tabular-numeric-md text-tabular-numeric-md font-semibold text-[#111318] mt-1 block">
                       {formatINR(aiForecast.recommended_cost_inr.total)}
                     </span>
                   </div>
-                  <div className="rounded border border-emerald-500/30 bg-emerald-950/20 p-2">
-                    <span className="text-[10px] uppercase text-emerald-400/80 block">
+                  <div className="p-3 rounded-xl status-green">
+                    <span className="font-label-caps text-label-caps uppercase opacity-80 block">
                       {horizonDays}d Net Saved
                     </span>
-                    <span className="text-xs font-bold text-emerald-300">
-                      +{formatINR(aiForecast.estimated_savings_inr)}
+                    <span className="font-tabular-numeric-md text-tabular-numeric-md font-semibold mt-1 block">
+                      -{formatINR(aiForecast.estimated_savings_inr)}
                     </span>
                   </div>
                 </div>
 
-                <div className="rounded border border-zinc-800 bg-zinc-950 px-2.5 py-2 text-[10px] text-zinc-400 flex flex-wrap items-center justify-between gap-2">
+                <div className="p-3 rounded-xl glass-well flex flex-wrap items-center justify-between gap-2 text-xs font-mono text-[#4A505C]">
                   <span>
-                    VM: <strong className="text-zinc-200">{formatINR(aiForecast.recommended_cost_inr.vm_compute)}</strong>
+                    Power Saved: <strong className="text-[#111318]">{formatNumber(Math.round(data.sustainability.monthly_kwh_saved))} kWh/mo</strong>
                   </span>
                   <span>
-                    SSD: <strong className="text-zinc-200">{formatINR(aiForecast.current_cost_inr.storage)}</strong>
+                    CO2e Abated: <strong className="text-[#111318]">{formatNumber(Math.round(data.sustainability.monthly_co2_kg_saved))} kg/mo</strong>
                   </span>
-                  <span>
-                    IPv4: <strong className="text-zinc-200">{formatINR(aiForecast.current_cost_inr.public_ip)}</strong>
-                  </span>
-                  <span className="text-emerald-400">
-                    GreenScore: <strong>{aiForecast.sustainability.sustainability_score}</strong> (PUE {aiForecast.sustainability.pue})
+                  <span className="px-2 py-0.5 rounded-md status-green text-[10px] font-semibold">
+                    GreenScore {aiForecast.sustainability.sustainability_score}
                   </span>
                 </div>
               </>
@@ -373,269 +1367,142 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
 
-      {/* Main Charts Row */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* 6-Month Bill Creep Chart */}
-        <div className="rounded-lg border border-zinc-800 bg-zinc-900/80 p-5 shadow-sm">
-          <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+      {/* 5. HISTORICAL CREEP & 60-DAY FORWARD TRAJECTORY CHARTS (Minimalist Glass) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-space-lg">
+        {/* 6-Month Historical Bill Creep */}
+        <div className="glass-card rounded-2xl p-space-lg">
+          <div className="flex items-center justify-between mb-3">
             <div>
-              <h2 className="text-sm font-semibold text-zinc-100">6-Month Historical Bill Creep (+{data.bill_growth_6m_pct}%)</h2>
-              <p className="text-xs text-zinc-400">Baseline spend climb without autonomous FinOps governance</p>
+              <h3 className="font-headline-md text-headline-md text-[#111318] font-semibold">
+                6-Month Historical Bill Creep (+{data.bill_growth_6m_pct}%)
+              </h3>
+              <p className="font-body-sm text-body-sm text-[#4A505C]">
+                Unmanaged infrastructure spend growth prior to FinSort rightsizing
+              </p>
             </div>
-            <span className="rounded bg-zinc-800 px-2 py-0.5 font-mono text-[11px] text-rose-400">
-              INR Monthly Bill
+            <span className="px-2.5 py-1 rounded-md status-red text-[11px] font-mono font-semibold">
+              INR Monthly
             </span>
           </div>
-
-          <div className="mt-4 h-64 w-full">
+          <div className="h-56 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={normalizedHistorical} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                 <defs>
-                  <linearGradient id="creepGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#f43f5e" stopOpacity={0} />
+                  <linearGradient id="carmineCreepGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#9E2F2B" stopOpacity={0.20} />
+                    <stop offset="95%" stopColor="#9E2F2B" stopOpacity={0.01} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-                <XAxis dataKey="month" stroke="#71717a" fontSize={11} tickLine={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(17,19,24,0.06)" vertical={false} />
+                <XAxis dataKey="month" stroke="#767D8C" fontSize={11} tickLine={false} />
                 <YAxis
-                  stroke="#71717a"
+                  stroke="#767D8C"
                   fontSize={11}
                   tickLine={false}
                   tickFormatter={(val) => `₹${(val / 1000).toFixed(0)}k`}
                 />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: '#18181b',
-                    borderColor: '#3f3f46',
-                    borderRadius: '6px',
+                    backgroundColor: 'rgba(255,255,255,0.92)',
+                    borderColor: 'rgba(17,19,24,0.08)',
+                    borderRadius: '10px',
                     fontSize: '12px',
                     fontFamily: 'JetBrains Mono',
+                    color: '#111318',
                   }}
-                  formatter={(val: any) => [formatINR(Number(val)), 'Total Monthly Spend']}
+                  formatter={(val: any) => [formatINR(Number(val)), 'Monthly Spend']}
                 />
                 <Area
                   type="monotone"
                   dataKey="spend_inr"
-                  stroke="#f43f5e"
+                  stroke="#9E2F2B"
                   strokeWidth={2}
-                  fillOpacity={1}
-                  fill="url(#creepGradient)"
+                  fill="url(#carmineCreepGrad)"
                 />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* 60-Day Spend Forecast Comparison */}
-        <div className="rounded-lg border border-zinc-800 bg-zinc-900/80 p-5 shadow-sm">
-          <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+        {/* 60-Day Forward Spend Trajectory */}
+        <div className="glass-card rounded-2xl p-space-lg">
+          <div className="flex items-center justify-between mb-3">
             <div>
-              <h2 className="text-sm font-semibold text-zinc-100">60-Day Forward Trajectory Projection</h2>
-              <p className="text-xs text-zinc-400">Unoptimized expansion vs. After Accepted Recommendations</p>
-            </div>
-            <span className="rounded bg-zinc-800 px-2 py-0.5 font-mono text-[11px] text-emerald-400">
-              Forecast 60d
-            </span>
-          </div>
-
-          <div className="mt-4 h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={normalizedForecast} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="unoptimizedGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#e11d48" stopOpacity={0.25} />
-                    <stop offset="95%" stopColor="#e11d48" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="optimizedGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.25} />
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-                <XAxis dataKey="displayDate" stroke="#71717a" fontSize={11} tickLine={false} />
-                <YAxis
-                  stroke="#71717a"
-                  fontSize={11}
-                  tickLine={false}
-                  tickFormatter={(val) => `₹${(val / 1000).toFixed(0)}k`}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#18181b',
-                    borderColor: '#3f3f46',
-                    borderRadius: '6px',
-                    fontSize: '12px',
-                    fontFamily: 'JetBrains Mono',
-                  }}
-                  formatter={(val: any, name: any) => [
-                    formatINR(Number(val)),
-                    name === 'unoptimized_inr' ? 'Unoptimized Trajectory' : 'After Accepted Rightsizing',
-                  ]}
-                />
-                <Legend
-                  wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }}
-                  formatter={(val) =>
-                    val === 'unoptimized_inr' ? 'Unoptimized Trajectory' : 'After Accepted Recommendations'
-                  }
-                />
-                <Area
-                  type="monotone"
-                  dataKey="unoptimized_inr"
-                  name="unoptimized_inr"
-                  stroke="#f43f5e"
-                  strokeWidth={2}
-                  strokeDasharray="4 4"
-                  fill="url(#unoptimizedGrad)"
-                />
-                <Area
-                  type="monotone"
-                  dataKey="optimized_inr"
-                  name="optimized_inr"
-                  stroke="#10b981"
-                  strokeWidth={2}
-                  fill="url(#optimizedGrad)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </div>
-
-      {/* Breakdown by Environment and Region */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Environment Breakdown */}
-        <div className="rounded-lg border border-zinc-800 bg-zinc-900/80 p-5 shadow-sm">
-          <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
-            <div className="flex items-center space-x-2">
-              <Layers className="h-4 w-4 text-zinc-400" />
-              <h2 className="text-sm font-semibold text-zinc-100">Spend by Environment (Prod vs Staging vs Dev)</h2>
-            </div>
-            <span className="text-xs text-zinc-400 font-mono">Current vs Target</span>
-          </div>
-
-          <div className="mt-4 h-56 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data.spend_by_env} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-                <XAxis dataKey="env" stroke="#71717a" fontSize={11} tickLine={false} />
-                <YAxis
-                  stroke="#71717a"
-                  fontSize={11}
-                  tickLine={false}
-                  tickFormatter={(val) => `₹${(val / 1000).toFixed(0)}k`}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#18181b',
-                    borderColor: '#3f3f46',
-                    borderRadius: '6px',
-                    fontSize: '12px',
-                    fontFamily: 'JetBrains Mono',
-                  }}
-                  formatter={(val: any, name: any) => [
-                    formatINR(Number(val)),
-                    name === 'current_inr' ? 'Current Spend' : 'Target Spend',
-                  ]}
-                />
-                <Legend
-                  wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }}
-                  formatter={(val) => (val === 'current_inr' ? 'Current Run-Rate' : 'Projected Post-Optimization')}
-                />
-                <Bar dataKey="current_inr" fill="#52525b" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="projected_inr" fill="#10b981" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Region Breakdown */}
-        <div className="rounded-lg border border-zinc-800 bg-zinc-900/80 p-5 shadow-sm">
-          <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
-            <div className="flex items-center space-x-2">
-              <MapPin className="h-4 w-4 text-zinc-400" />
-              <h2 className="text-sm font-semibold text-zinc-100">Spend by Utho Cloud Region</h2>
-            </div>
-            <span className="text-xs text-zinc-400 font-mono">in-noida / in-bangalore / in-mumbai</span>
-          </div>
-
-          <div className="mt-4 h-56 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data.spend_by_region} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-                <XAxis dataKey="region" stroke="#71717a" fontSize={11} tickLine={false} />
-                <YAxis
-                  stroke="#71717a"
-                  fontSize={11}
-                  tickLine={false}
-                  tickFormatter={(val) => `₹${(val / 1000).toFixed(0)}k`}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#18181b',
-                    borderColor: '#3f3f46',
-                    borderRadius: '6px',
-                    fontSize: '12px',
-                    fontFamily: 'JetBrains Mono',
-                  }}
-                  formatter={(val: any, name: any) => [
-                    formatINR(Number(val)),
-                    name === 'current_inr' ? 'Current Spend' : 'Target Spend',
-                  ]}
-                />
-                <Legend
-                  wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }}
-                  formatter={(val) => (val === 'current_inr' ? 'Current Spend' : 'Projected Spend')}
-                />
-                <Bar dataKey="current_inr" fill="#3f3f46" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="projected_inr" fill="#06b6d4" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </div>
-
-      {/* Sustainability & ESG Impact Strip */}
-      <div className="rounded-lg border border-emerald-500/20 bg-gradient-to-r from-emerald-950/20 via-zinc-900/90 to-zinc-900/90 p-5 shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center space-x-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-emerald-500/30 bg-emerald-900/30 text-emerald-400">
-              <Leaf className="h-5 w-5" />
-            </div>
-            <div>
-              <div className="flex items-center space-x-2">
-                <h3 className="text-sm font-semibold text-zinc-100">Green FinOps & Carbon Avoidance</h3>
-                <span className="rounded bg-emerald-500/10 px-2 py-0.5 text-[10px] font-mono text-emerald-400 border border-emerald-500/20">
-                  CEA India Grid Baseline
-                </span>
-              </div>
-              <p className="text-xs text-zinc-400">
-                Eliminating overprovisioned compute and halting off-hours staging directly shrinks datacenter power draw.
+              <h3 className="font-headline-md text-headline-md text-[#111318] font-semibold">
+                60-Day Optimization Trajectory &amp; Regional Split
+              </h3>
+              <p className="font-body-sm text-body-sm text-[#4A505C]">
+                Baseline expansion vs. Post-Optimization run-rate across Utho regions
               </p>
             </div>
+            <span className="px-2.5 py-1 rounded-md status-green text-[11px] font-mono font-semibold">
+              60d Forecast
+            </span>
           </div>
-
-          <div className="flex flex-wrap items-center gap-4 text-xs font-mono">
-            <div className="rounded border border-zinc-800 bg-zinc-950 px-3.5 py-2">
-              <span className="text-[10px] uppercase text-zinc-400 block">Monthly Power Saved</span>
-              <span className="text-sm font-bold text-emerald-400">
-                {formatNumber(Math.round(data.sustainability.monthly_kwh_saved))} kWh
-              </span>
-            </div>
-
-            <div className="rounded border border-zinc-800 bg-zinc-950 px-3.5 py-2">
-              <span className="text-[10px] uppercase text-zinc-400 block">CO₂ Abated</span>
-              <span className="text-sm font-bold text-emerald-400">
-                {formatNumber(Math.round(data.sustainability.monthly_co2_kg_saved))} kg CO₂e
-              </span>
-            </div>
-
-            <div className="rounded border border-zinc-800 bg-zinc-950 px-3.5 py-2">
-              <span className="text-[10px] uppercase text-zinc-400 block">Equiv. Mature Trees</span>
-              <span className="text-sm font-bold text-emerald-300">
-                🌱 {Math.round(data.sustainability.trees_equivalent)} trees/yr
-              </span>
-            </div>
+          <div className="h-56 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              {normalizedForecast.length > 0 ? (
+                <AreaChart data={normalizedForecast} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="sageOptGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#236B52" stopOpacity={0.22} />
+                      <stop offset="95%" stopColor="#236B52" stopOpacity={0.01} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(17,19,24,0.06)" vertical={false} />
+                  <XAxis dataKey="displayDate" stroke="#767D8C" fontSize={11} tickLine={false} />
+                  <YAxis
+                    stroke="#767D8C"
+                    fontSize={11}
+                    tickLine={false}
+                    tickFormatter={(val) => `₹${(val / 1000).toFixed(0)}k`}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'rgba(255,255,255,0.92)',
+                      borderColor: 'rgba(17,19,24,0.08)',
+                      borderRadius: '10px',
+                      fontSize: '12px',
+                      fontFamily: 'JetBrains Mono',
+                      color: '#111318',
+                    }}
+                    formatter={(val: any, name: any) => [
+                      formatINR(Number(val)),
+                      name === 'unoptimized_inr' ? 'Unoptimized Baseline' : 'Optimized Run-Rate',
+                    ]}
+                  />
+                  <Legend
+                    wrapperStyle={{ fontSize: '11px', paddingTop: '6px' }}
+                    formatter={(val) =>
+                      val === 'unoptimized_inr' ? 'Unoptimized Baseline' : 'After Approved Optimizations'
+                    }
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="unoptimized_inr"
+                    stroke="#9E2F2B"
+                    strokeWidth={1.75}
+                    strokeDasharray="4 4"
+                    fill="none"
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="optimized_inr"
+                    stroke="#236B52"
+                    strokeWidth={2}
+                    fill="url(#sageOptGrad)"
+                  />
+                </AreaChart>
+              ) : (
+                <BarChart data={data.spend_by_region} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(17,19,24,0.06)" vertical={false} />
+                  <XAxis dataKey="region" stroke="#767D8C" fontSize={11} tickLine={false} />
+                  <YAxis stroke="#767D8C" fontSize={11} tickLine={false} />
+                  <Bar dataKey="current_inr" fill="#4A505C" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="projected_inr" fill="#236B52" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              )}
+            </ResponsiveContainer>
           </div>
         </div>
       </div>

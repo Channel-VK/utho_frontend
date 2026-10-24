@@ -1,38 +1,303 @@
 @import "tailwindcss";
 
-@layer base {
-  :root {
-    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  }
+@theme {
+  --font-sans: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-display-lg: "Geist", sans-serif;
+  --font-headline-xl: "Geist", sans-serif;
+  --font-headline-lg: "Geist", sans-serif;
+  --font-headline-md: "Geist", sans-serif;
+  --font-body-lg: "Geist", sans-serif;
+  --font-body-md: "Geist", sans-serif;
+  --font-body-sm: "Geist", sans-serif;
+  --font-label-caps: "Geist", sans-serif;
+  --font-tabular-numeric-lg: "Geist", sans-serif;
+  --font-tabular-numeric-md: "Geist", sans-serif;
+  --font-code-sm: "JetBrains Mono", monospace;
 
+  /* Minimalist Architectural Glass Palette (Monochrome + Blended Status Only) */
+  --color-surface: #f3f4f6;
+  --color-surface-bg: #f3f4f6;
+  --color-background: #f3f4f6;
+  --color-surface-bright: rgba(255, 255, 255, 0.86);
+  --color-surface-container-lowest: rgba(255, 255, 255, 0.76);
+  --color-surface-container-low: rgba(17, 19, 24, 0.035);
+  --color-surface-container: rgba(17, 19, 24, 0.055);
+  --color-surface-container-high: rgba(17, 19, 24, 0.08);
+  --color-surface-container-highest: rgba(17, 19, 24, 0.11);
+  --color-surface-variant: rgba(17, 19, 24, 0.06);
+  --color-surface-dim: #e5e7eb;
+  --color-surface-tint: #3f4450;
+
+  --color-on-surface: #111318;
+  --color-on-background: #111318;
+  --color-on-surface-variant: #4a505c;
+  --color-outline: #767d8c;
+  --color-outline-variant: rgba(17, 19, 24, 0.08);
+
+  /* Primary & Secondary unified to Architectural Carbon / Graphite */
+  --color-primary: #111318;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #1e222a;
+  --color-on-primary-container: #9ca3af;
+
+  --color-secondary: #181b22;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #2a2f3a;
+  --color-on-secondary-container: #ffffff;
+
+  /* Bespoke Non-Standard Status Tokens: Mineral Sage (Green), Warm Ochre (Yellow), Terracotta Carmine (Red) */
+  --color-tertiary-container: rgba(35, 107, 82, 0.11);
+  --color-tertiary-fixed: #1d5c46;
+  --color-on-tertiary-container: #236b52;
+
+  --color-status-green-bg: rgba(35, 107, 82, 0.10);
+  --color-status-green-border: rgba(35, 107, 82, 0.22);
+  --color-status-green-text: #1d5c46;
+  --color-status-green-solid: #236b52;
+
+  --color-status-yellow-bg: rgba(168, 110, 32, 0.11);
+  --color-status-yellow-border: rgba(168, 110, 32, 0.24);
+  --color-status-yellow-text: #7c4f14;
+  --color-status-yellow-solid: #94601b;
+
+  --color-status-red-bg: rgba(166, 52, 47, 0.10);
+  --color-status-red-border: rgba(166, 52, 47, 0.22);
+  --color-status-red-text: #8f2925;
+  --color-status-red-solid: #9e2f2b;
+
+  --color-error: #9e2f2b;
+  --color-on-error: #ffffff;
+  --color-error-container: rgba(166, 52, 47, 0.10);
+  --color-on-error-container: #8f2925;
+
+  /* Stitch Spacing Tokens */
+  --spacing-space-xs: 0.25rem;
+  --spacing-space-sm: 0.5rem;
+  --spacing-space-md: 0.75rem;
+  --spacing-space-lg: 1.25rem;
+  --spacing-space-xl: 2rem;
+  --spacing-gutter: 1.25rem;
+  --spacing-gutter-desktop: 1.5rem;
+  --spacing-margin: 1rem;
+  --spacing-margin-tablet: 1.5rem;
+  --spacing-margin-desktop: 2.5rem;
+}
+
+@layer base {
+  html,
   body {
+    margin: 0;
+    padding: 0;
     font-family: var(--font-sans);
-    background-color: #09090b; /* zinc-950 */
-    color: #f4f4f5; /* zinc-100 */
+    background-color: #f3f4f6;
+    background-image:
+      radial-gradient(at 15% 0%, rgba(255, 255, 255, 0.9) 0px, transparent 55%),
+      radial-gradient(at 85% 10%, rgba(226, 230, 237, 0.65) 0px, transparent 50%),
+      radial-gradient(at 50% 100%, rgba(235, 238, 243, 0.8) 0px, transparent 60%);
+    background-attachment: fixed;
+    color: #111318;
     overflow-x: hidden;
   }
 
-  code, pre, .font-mono {
+  code,
+  pre,
+  .font-mono,
+  .font-code-sm {
     font-family: var(--font-mono);
   }
 }
 
-/* Custom crisp dark scrollbars */
+/* Glassmorphism Surface Primitives */
+.glass-card {
+  background: rgba(255, 255, 255, 0.74);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid rgba(17, 19, 24, 0.075);
+  box-shadow:
+    0 1px 2px rgba(17, 19, 24, 0.025),
+    0 10px 28px -6px rgba(17, 19, 24, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.88);
+}
+
+.glass-well {
+  background: rgba(17, 19, 24, 0.032);
+  border: 1px solid rgba(17, 19, 24, 0.055);
+  box-shadow: inset 0 1px 2px rgba(17, 19, 24, 0.02);
+}
+
+.glass-pill-neutral {
+  background: rgba(17, 19, 24, 0.045);
+  border: 1px solid rgba(17, 19, 24, 0.08);
+  color: #3f4450;
+}
+
+/* Seamless Desaturated Status Pills (Only Green, Yellow, Red) */
+.status-green {
+  background: rgba(35, 107, 82, 0.10);
+  border: 1px solid rgba(35, 107, 82, 0.22);
+  color: #1d5c46;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+.status-yellow {
+  background: rgba(168, 110, 32, 0.11);
+  border: 1px solid rgba(168, 110, 32, 0.24);
+  color: #7c4f14;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+.status-red {
+  background: rgba(166, 52, 47, 0.10);
+  border: 1px solid rgba(166, 52, 47, 0.22);
+  color: #8f2925;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+/* Typography Token Classes */
+.text-display-lg {
+  font-size: 36px;
+  line-height: 44px;
+  letter-spacing: -0.025em;
+  font-weight: 600;
+}
+
+.text-headline-xl {
+  font-size: 24px;
+  line-height: 32px;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+}
+
+.text-headline-lg {
+  font-size: 20px;
+  line-height: 28px;
+  letter-spacing: -0.015em;
+  font-weight: 600;
+}
+
+.text-headline-md {
+  font-size: 16px;
+  line-height: 24px;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+}
+
+.text-tabular-numeric-lg {
+  font-size: 22px;
+  line-height: 28px;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.text-tabular-numeric-md {
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: -0.01em;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.text-body-lg {
+  font-size: 15px;
+  line-height: 22px;
+  letter-spacing: -0.005em;
+}
+
+.text-body-md {
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.text-body-sm {
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.text-label-caps {
+  font-size: 11px;
+  line-height: 16px;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.text-code-sm {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: -0.01em;
+}
+
+/* Unified Minimalist Graphite Sliders */
+.slider-minimal::-webkit-slider-thumb,
+.slider-blue::-webkit-slider-thumb,
+.slider-purple::-webkit-slider-thumb,
+.slider-amber::-webkit-slider-thumb,
+.slider-teal::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #111318;
+  border: 2px solid #ffffff;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(17, 19, 24, 0.28);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.slider-minimal::-webkit-slider-thumb:hover,
+.slider-blue::-webkit-slider-thumb:hover,
+.slider-purple::-webkit-slider-thumb:hover,
+.slider-amber::-webkit-slider-thumb:hover,
+.slider-teal::-webkit-slider-thumb:hover {
+  transform: scale(1.08);
+  box-shadow: 0 2px 6px rgba(17, 19, 24, 0.38);
+}
+
+/* Accessible & Responsive Table Wrapper */
+.table-wrapper {
+  overflow: auto;
+  max-inline-size: 100%;
+  container-type: inline-size;
+}
+
+.table-wrapper table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.table-wrapper thead {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 1;
+}
+
+@media (forced-colors: active) {
+  .glass-card,
+  .glass-well,
+  .status-green,
+  .status-yellow,
+  .status-red {
+    border: 1px solid CanvasText;
+  }
+}
+
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #09090b;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #27272a;
+  background: rgba(17, 19, 24, 0.16);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #3f3f46;
+  background: rgba(17, 19, 24, 0.28);
 }
