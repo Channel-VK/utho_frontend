@@ -9,6 +9,7 @@ import { ResourceDetailModal } from './views/ResourceDetailModal';
 import { RecommendationsView } from './views/RecommendationsView';
 import { SimulatorAndAlertsView } from './views/SimulatorAndAlertsView';
 import { AssumptionsView } from './views/AssumptionsView';
+import { CopilotView } from './views/CopilotView';
 import { apiClient } from './api/client';
 import type {
   DashboardResponse,
@@ -325,6 +326,14 @@ export function App() {
 
           {activeTab === 'assumptions' && assumptions && (
             <AssumptionsView assumptions={assumptions} />
+          )}
+
+          {activeTab === 'copilot' && (
+            <CopilotView
+              isAIConnected={isAIConnected}
+              onInspectResource={(id) => handleSelectResource(id, true)}
+              onNavigateToTab={(tab) => setActiveTab(tab as ActiveTab)}
+            />
           )}
         </main>
       </div>

@@ -5,7 +5,8 @@ export type ActiveTab =
   | 'simulator'
   | 'recommendations'
   | 'inventory'
-  | 'assumptions';
+  | 'assumptions'
+  | 'copilot';
 
 interface HeaderProps {
   activeTab: ActiveTab;
@@ -47,6 +48,8 @@ export const Header: React.FC<HeaderProps> = ({
       ? 'Recommendations & Pricing'
       : activeTab === 'inventory'
       ? 'Full Fleet Inventory (85 Resources)'
+      : activeTab === 'copilot'
+      ? 'AI FinOps Copilot & TimescaleDB Telemetry'
       : 'Optimization Governance & Pricing Math';
 
   const isSpendingAll =
@@ -178,6 +181,29 @@ export const Header: React.FC<HeaderProps> = ({
                 }`}
               >
                 {pendingRecsCount} Pending
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onTabChange('copilot')}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs transition-all ${
+                activeTab === 'copilot'
+                  ? 'font-semibold text-white bg-[#111318] shadow-xs'
+                  : 'font-medium text-[#4A505C] hover:text-[#111318] hover:bg-black/[0.04]'
+              }`}
+            >
+              <span>AI FinOps Copilot</span>
+              <span
+                className={`text-[10px] font-mono px-2 py-0.5 rounded-md font-semibold ${
+                  activeTab === 'copilot'
+                    ? 'bg-white/15 text-white'
+                    : isAIConnected
+                    ? 'status-green'
+                    : 'glass-pill-neutral'
+                }`}
+              >
+                Timescale+AI
               </span>
             </button>
 

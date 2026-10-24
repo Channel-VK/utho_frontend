@@ -395,3 +395,35 @@ export interface RemediationExport {
   terraform_hcl: string;
   csv_report: string;
 }
+
+export interface ChatRequest {
+  message: string;
+  conversation_id?: string;
+}
+
+export interface ChatResponse {
+  conversation_id: string;
+  answer: string;
+  tool?: string;
+  data?: any;
+  model?: string;
+}
+
+export interface ChatMessageItem {
+  role: 'user' | 'assistant';
+  content: string;
+  created_at?: string;
+  tool?: string;
+  data?: any;
+}
+
+export interface ChatHistoryResponse {
+  conversation_id: string;
+  created_at: string;
+  updated_at: string;
+  messages: {
+    role: 'user' | 'assistant';
+    content: string;
+    created_at: string;
+  }[];
+}

@@ -12,6 +12,8 @@ import type {
   NLScenarioResponse,
   AIForecastResponse,
   AIBriefingResponse,
+  ChatResponse,
+  ChatHistoryResponse,
 } from '../types/api';
 import {
   INITIAL_RESOURCES,
@@ -672,6 +674,76 @@ class LocalFinOpsEngine {
     };
   }
 
+  public sendChatMessage(message: string, conversationId?: string): ChatResponse {
+    const cid = conversationId || `conv-${Date.now()}`;
+    const lower = message.toLowerCase();
+    let reply = '';
+    let toolUsed = 'finops_overview';
+    let dataPayload: any = null;
+
+    if (lower.includes('saving') || lower.includes('rightsiz') || lower.includes('recommend')) {
+      toolUsed = 'rightsizing_inventory';
+      reply =
+        'Based on our deterministic 85-resource audit across in-noida-1, in-bangalore-1, and in-mumbai-1, we identified ₹2,77,230/mo in total potential savings. ₹1,50,310/mo is already accepted across 12 high-confidence recommendations. All candidate downsizings pass the SRE Peak-Safety Governor (Projected p99 < 85%).';
+      dataPayload = {
+        total_monthly_savings_inr: 277230,
+        accepted_savings_inr: 150310,
+        candidates_count: 20,
+        governor_threshold: 'p99 < 85%',
+      };
+    } else if (lower.includes('alert') || lower.includes('anomal') || lower.includes('failure') || lower.includes('ttf')) {
+      toolUsed = 'anomaly_correlation';
+      reply =
+        'Telemetry shows 3 active critical alerts: ALT-001 (prod-search-indexer-04) memory leak with 6.6 hours to OOM kernel panic; ALT-002 (staging-loadtest-cluster) idle bleed at ₹2,986/day; and ALT-003 (prod-postgres-wal-volume) disk exhaustion in 9.8 days.';
+      dataPayload = {
+        active_critical_alerts: 3,
+        urgent_ttf_target: 'res-vm-015 (prod-search-indexer-04)',
+        urgent_ttf_hours: 6.6,
+      };
+    } else if (lower.includes('what if') || lower.includes('simulat') || lower.includes('dev') || lower.includes('bangalore')) {
+      toolUsed = 'what_if_simulator';
+      reply =
+        'Simulating scenario: Off-hours hibernation for Bangalore dev/staging instances yields ₹78,400/mo reduction while maintaining +25% peak headroom buffer.';
+      dataPayload = {
+        simulated_savings_inr: 78400,
+        headroom_pct: 25,
+        region: 'in-bangalore-1',
+      };
+    } else {
+      reply =
+        'SmartCloud Copilot is connected. I monitor all 85 Utho Cloud resources, real-time p95/p99 telemetry, INR cost optimization opportunities, and SRE anomaly predictions. Ask me about rightsizing, active alerts, cost forecasts, or simulation scenarios.';
+      dataPayload = {
+        total_resources: 85,
+        active_regions: ['in-noida-1', 'in-bangalore-1', 'in-mumbai-1'],
+        currency: 'INR (₹)',
+      };
+    }
+
+    return {
+      conversation_id: cid,
+      answer: reply,
+      tool: toolUsed,
+      data: dataPayload,
+      model: 'SmartCloud-FinOps-Copilot (Deterministic SRE Fallback)',
+    };
+  }
+
+  public getChatHistory(conversationId: string): ChatHistoryResponse {
+    const now = new Date().toISOString();
+    return {
+      conversation_id: conversationId,
+      created_at: now,
+      updated_at: now,
+      messages: [
+        {
+          role: 'assistant',
+          content: 'SmartCloud Copilot connected. How can I help you optimize your Utho Cloud infrastructure today?',
+          created_at: now,
+        },
+      ],
+    };
+  }
+
   private recalculateAll() {
     // initialize defaults
   }
@@ -952,6 +1024,59 @@ export const apiClient = {
     } catch {
       localEngine.setConnected(false);
       return localEngine.getRemediationExport();
+    }
+  },
+
+  async sendChatMessage(message: string, conversationId?: string): Promise<ChatResponse> {
+    try {
+      const res = await fetch(`${BASE_URL}/ai/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message, conversation_id: conversationId }),
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!res.ok) {
+        // Fallback to /chat alias if mounted directly
+        const altRes = await fetch(`${BASE_URL}/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message, conversation_id: conversationId }),
+          signal: AbortSignal.timeout(8000),
+        });
+        if (!altRes.ok) throw new Error(`HTTP ${altRes.status}`);
+        const data = await altRes.json();
+        localEngine.setConnected(true);
+        localEngine.setAIConnected(true);
+        return data;
+      }
+      const data = await res.json();
+      localEngine.setConnected(true);
+      localEngine.setAIConnected(true);
+      return data;
+    } catch {
+      return localEngine.sendChatMessage(message, conversationId);
+    }
+  },
+
+  async getChatHistory(conversationId: string): Promise<ChatHistoryResponse> {
+    try {
+      const res = await fetch(`${BASE_URL}/ai/chat/${encodeURIComponent(conversationId)}`, {
+        signal: AbortSignal.timeout(3000),
+      });
+      if (!res.ok) {
+        const altRes = await fetch(`${BASE_URL}/chat/${encodeURIComponent(conversationId)}`, {
+          signal: AbortSignal.timeout(3000),
+        });
+        if (!altRes.ok) throw new Error(`HTTP ${altRes.status}`);
+        const data = await altRes.json();
+        localEngine.setConnected(true);
+        return data;
+      }
+      const data = await res.json();
+      localEngine.setConnected(true);
+      return data;
+    } catch {
+      return localEngine.getChatHistory(conversationId);
     }
   },
 };
