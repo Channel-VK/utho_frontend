@@ -123,7 +123,21 @@ export const ResourceDetailModal: React.FC<ResourceDetailModalProps> = ({
   const jevProbs = jev?.probabilities || jev?.probability_distribution || {};
   const headroomCushion = Math.max(0, 85 - peakQ90);
   const runbookSteps = eng.rollback_runbook || eng.actionable_next_steps || [];
-  const tfCode = eng.terraform_hcl || rec?.terraform_code || '';
+  const safeTfLabel = (resource.name || resource.id).replace(/[^a-zA-Z0-9_]/g, '_');
+  const targetTfPlan = (rec?.recommended_config || rec?.target_spec || planName || 'c4.medium').split(' ')[0];
+  const fallbackTfCode = [
+    `resource "utho_cloud_instance" "${safeTfLabel}" {`,
+    `  name   = "${resource.name}"`,
+    `  dcslug = "${resource.region}"`,
+    `  plan   = "${targetTfPlan}"`,
+    `  tags = {`,
+    `    Environment = "${resource.env}"`,
+    `    Team        = "${resource.team}"`,
+    `    ManagedBy   = "FinSort-FinOps"`,
+    `  }`,
+    `}`,
+  ].join('\n');
+  const tfCode = eng.terraform_hcl || rec?.terraform_code || fallbackTfCode;
   const greenOps = eng.greenops_impact;
 
   const handleCopyTf = () => {

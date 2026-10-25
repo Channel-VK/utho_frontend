@@ -151,7 +151,13 @@ export const apiClient = {
   },
 
   async exportRemediation(format: 'json' | 'csv' | 'markdown' = 'markdown'): Promise<RemediationExport> {
-    return fetchJSON<RemediationExport>(`${BASE_URL}/export?format=${encodeURIComponent(format)}`);
+    try {
+      return await fetchJSON<RemediationExport>(
+        `${BASE_URL}/export/remediation?format=${encodeURIComponent(format)}`
+      );
+    } catch {
+      return fetchJSON<RemediationExport>(`${BASE_URL}/export?format=${encodeURIComponent(format)}`);
+    }
   },
 
   async getRemediationExport(format: 'json' | 'csv' | 'markdown' = 'markdown'): Promise<RemediationExport> {

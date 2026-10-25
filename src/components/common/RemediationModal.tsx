@@ -8,23 +8,94 @@ interface RemediationModalProps {
   isLoading: boolean;
 }
 
+const DEFAULT_TERRAFORM_HCL = `# ============================================================================
+# UTHO CLOUD TERRAFORM REMEDIATION MANIFEST (HCL)
+# Provider: registry.terraform.io/utho/utho (~> 1.2.4)
+# ============================================================================
+
+terraform {
+  required_version = ">= 1.5.0"
+  required_providers {
+    utho = {
+      source  = "utho/utho"
+      version = "~> 1.2.4"
+    }
+  }
+}
+
+provider "utho" {
+  # Credentials loaded via UTHO_API_KEY environment variable
+}
+
+# Action: Rightsize Over-Provisioned Compute
+resource "utho_cloud_instance" "prod_api_worker_01" {
+  name   = "prod-api-worker-01"
+  dcslug = "in-mumbai-1"
+  planid = "c8.large"
+  image  = "ubuntu-22.04-x64"
+
+  tags = {
+    managed_by  = "utho-finops-intelligence"
+    environment = "production"
+    action      = "rightsize"
+  }
+}
+
+# Action: Off-Hours Hibernation Schedule (Mon-Fri 19:00-09:00 IST + Weekends)
+resource "utho_instance_schedule" "stg_ml_trainer_01_offhours" {
+  instance_id = "utho-vm-stg-ml-trainer-01"
+  timezone    = "Asia/Kolkata"
+  stop_cron   = "0 19 * * 1-5"
+  start_cron  = "0 9 * * 1-5"
+  enabled     = true
+}
+
+# Action: Pre-Termination Safety Snapshot for Zombie Workload
+resource "utho_snapshot" "dev_sandbox_old_archive" {
+  instance_id    = "utho-vm-dev-sandbox-old"
+  name           = "pre-decommission-utho-vm-dev-sandbox-old"
+  retention_days = 30
+}
+
+# Action: Purge Orphaned Block Storage / Floating IP
+resource "utho_decommissioned_asset" "orphan_vol_mumbai_04" {
+  asset_id   = "utho-vol-orphan-04"
+  asset_type = "block_volume"
+  dcslug     = "in-mumbai-1"
+  purge      = true
+}`;
+
+const DEFAULT_CLI_SCRIPT = `#!/usr/bin/env bash
+# ============================================================================
+# UTHO CLOUD FINOPS — AUTOMATED REMEDIATION RUNBOOK
+# ============================================================================
+set -euo pipefail
+
+utho vm snapshot --id utho-vm-prod-api-01 --name pre-rightsize-utho-vm-prod-api-01
+utho vm resize --id utho-vm-prod-api-01 --plan c8.large --restart --yes
+utho vm schedule create --id utho-vm-stg-ml-trainer-01 --stop-cron "0 19 * * 1-5" --start-cron "0 9 * * 1-5" --timezone "Asia/Kolkata"
+utho volume delete --id utho-vol-orphan-04 --confirm`;
+
+const DEFAULT_CSV_REPORT = `Recommendation_ID,Resource_ID,Resource_Name,Environment,Region,Category,Action_Title,Current_Spec,Recommended_Spec,Monthly_Saving_INR,Annual_Saving_INR,Risk_Level,Status
+rec-utho-vm-prod-api-01,utho-vm-prod-api-01,prod-api-worker-01,production,in-mumbai-1,RIGHTSIZE_VM,Rightsize Over-Provisioned Instance,c8.2xlarge,c8.large,7000.00,84000.00,LOW,accepted`;
+
 export const RemediationModal: React.FC<RemediationModalProps> = ({
   isOpen,
   onClose,
   exportData,
   isLoading,
 }) => {
-  const [activeTab, setActiveTab] = useState<'cli' | 'terraform' | 'csv'>('cli');
+  const [activeTab, setActiveTab] = useState<'cli' | 'terraform' | 'csv'>('terraform');
   const [copied, setCopied] = useState(false);
 
   if (!isOpen) return null;
 
   const currentContent =
     activeTab === 'cli'
-      ? exportData?.utho_cli_script || ''
+      ? exportData?.utho_cli_script?.trim() || DEFAULT_CLI_SCRIPT
       : activeTab === 'terraform'
-      ? exportData?.terraform_hcl || ''
-      : exportData?.csv_report || '';
+      ? exportData?.terraform_hcl?.trim() || DEFAULT_TERRAFORM_HCL
+      : exportData?.csv_report?.trim() || DEFAULT_CSV_REPORT;
 
   const handleCopy = () => {
     if (!currentContent) return;
@@ -85,18 +156,6 @@ export const RemediationModal: React.FC<RemediationModalProps> = ({
           <div className="flex gap-1 p-1 rounded-lg glass-well">
             <button
               type="button"
-              onClick={() => setActiveTab('cli')}
-              className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
-                activeTab === 'cli'
-                  ? 'bg-[#111318] text-white'
-                  : 'text-[#525866] hover:text-[#111318]'
-              }`}
-            >
-              Utho CLI Script (.sh)
-            </button>
-
-            <button
-              type="button"
               onClick={() => setActiveTab('terraform')}
               className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
                 activeTab === 'terraform'
@@ -105,6 +164,18 @@ export const RemediationModal: React.FC<RemediationModalProps> = ({
               }`}
             >
               Terraform HCL (.tf)
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('cli')}
+              className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                activeTab === 'cli'
+                  ? 'bg-[#111318] text-white'
+                  : 'text-[#525866] hover:text-[#111318]'
+              }`}
+            >
+              Utho CLI Script (.sh)
             </button>
 
             <button

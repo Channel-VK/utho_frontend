@@ -415,13 +415,169 @@ export function App() {
     await refreshDashboardAndRecs();
   };
 
+  // Build deterministic Terraform HCL, Utho CLI script, and CSV report from current recommendations
+  const buildLocalRemediationExport = useCallback((): RemediationExport => {
+    const allRecs = recommendationsData?.items || [];
+    const acceptedRecs = allRecs.filter((r) => r.status === 'accepted');
+    const targetRecs = acceptedRecs.length > 0 ? acceptedRecs : allRecs.filter((r) => r.status !== 'rejected');
+    const ts = new Date().toISOString();
+
+    const cliLines: string[] = [
+      '#!/usr/bin/env bash',
+      '# ==============================================================================',
+      '# FINSORT - AUTOMATED REMEDIATION RUNBOOK (UTHO CLOUD)',
+      `# Generated at: ${ts}`,
+      `# Scope: ${targetRecs.length} FinOps Remediations (${acceptedRecs.length > 0 ? 'Accepted' : 'Actionable Pipeline'})`,
+      '# ==============================================================================',
+      '',
+      'set -euo pipefail',
+      'command -v utho >/dev/null 2>&1 || { echo >&2 "[ERROR] utho CLI not found in PATH."; exit 1; }',
+      '',
+    ];
+
+    const tfLines: string[] = [
+      '# ==============================================================================',
+      '# FINSORT - TERRAFORM HCL RECONFIGURATIONS (UTHO CLOUD)',
+      `# Generated at: ${ts}`,
+      `# Scope: ${targetRecs.length} FinOps Remediations (${acceptedRecs.length > 0 ? 'Accepted' : 'Actionable Pipeline'})`,
+      '# ==============================================================================',
+      '',
+      'terraform {',
+      '  required_version = ">= 1.5.0"',
+      '  required_providers {',
+      '    utho = {',
+      '      source  = "uthocloud/utho"',
+      '      version = "~> 1.2.4"',
+      '    }',
+      '  }',
+      '}',
+      '',
+      'provider "utho" {',
+      '  # Uses UTHO_API_KEY from environment',
+      '}',
+      '',
+    ];
+
+    const csvLines: string[] = [
+      'Recommendation ID,Resource ID,Resource Name,Type,Region,Environment,Team,Action,Current Config,Recommended Config,Current Monthly (INR),Projected Monthly (INR),Monthly Savings (INR),Confidence Score,Risk Level,Status',
+    ];
+
+    for (const r of targetRecs) {
+      const safeLabel = (r.resource_name || r.resource_id).replace(/[^a-zA-Z0-9_]/g, '_');
+      const curCfg = r.current_config || r.current_spec || 'standard';
+      const recCfg = r.recommended_config || r.target_spec || 'optimized';
+      const targetPlan = recCfg.split(' ')[0] || 'c4.medium';
+      const conf = r.confidence_score ?? r.confidence_pct ?? 95;
+
+      csvLines.push(
+        `"${r.id}","${r.resource_id}","${r.resource_name}","${r.resource_type}","${r.region}","${r.env}","${r.team}","${r.action_type}","${curCfg}","${recCfg}",${r.current_monthly_inr || 0},${r.projected_monthly_inr || 0},${r.monthly_savings_inr || 0},${conf},"${r.risk_level}","${r.status}"`
+      );
+
+      if (r.action_type === 'RIGHTSIZE_VM') {
+        cliLines.push(
+          `# Resize ${r.resource_name} (${r.resource_id}) -> ${targetPlan} (Saves ₹${Math.round(r.monthly_savings_inr)}/mo)`,
+          `utho vm snapshot --id ${r.resource_id} --name "pre-rightsize-${r.resource_id}"`,
+          `utho vm resize --id ${r.resource_id} --plan ${targetPlan} --region ${r.region} --restart --yes`,
+          ''
+        );
+        tfLines.push(
+          `# Rightsize ${r.resource_name} (${r.resource_id}): ${curCfg} -> ${recCfg} (Saves ₹${Math.round(r.monthly_savings_inr)}/mo)`,
+          `resource "utho_cloud_instance" "${safeLabel}" {`,
+          `  name   = "${r.resource_name}"`,
+          `  dcslug = "${r.region}"`,
+          `  plan   = "${targetPlan}"`,
+          `  tags = {`,
+          `    Environment = "${r.env}"`,
+          `    Team        = "${r.team}"`,
+          `    ManagedBy   = "FinSort-FinOps"`,
+          `    Action      = "RIGHTSIZE_VM"`,
+          `  }`,
+          `}`,
+          ''
+        );
+      } else if (r.action_type === 'SCHEDULE_OFF_HOURS' || r.action_type === 'OFF_HOURS_SHUTDOWN') {
+        cliLines.push(
+          `# Off-Hours Schedule for ${r.resource_name} (${r.resource_id}) (Saves ₹${Math.round(r.monthly_savings_inr)}/mo)`,
+          `utho vm schedule create --id ${r.resource_id} --stop-cron "0 19 * * 1-5" --start-cron "0 9 * * 1-5" --timezone "Asia/Kolkata"`,
+          ''
+        );
+        tfLines.push(
+          `# Off-Hours Hibernation for ${r.resource_name} (${r.resource_id}) (Saves ₹${Math.round(r.monthly_savings_inr)}/mo)`,
+          `resource "utho_instance_schedule" "${safeLabel}_offhours" {`,
+          `  instance_id = "${r.resource_id}"`,
+          `  name        = "${r.resource_name}-offhours"`,
+          `  dcslug      = "${r.region}"`,
+          `  stop_cron   = "0 19 * * 1-5"`,
+          `  start_cron  = "0 9 * * 1-5"`,
+          `  timezone    = "Asia/Kolkata"`,
+          `}`,
+          ''
+        );
+      } else if (r.action_type === 'TERMINATE_ZOMBIE' || r.action_type === 'TERMINATE_ZOMBIE_VM') {
+        cliLines.push(
+          `# Snapshot & Terminate Zombie VM ${r.resource_name} (${r.resource_id}) (Saves ₹${Math.round(r.monthly_savings_inr)}/mo)`,
+          `utho vm snapshot --id ${r.resource_id} --name "archive-${r.resource_id}"`,
+          `utho vm destroy --id ${r.resource_id} --force`,
+          ''
+        );
+        tfLines.push(
+          `# Archive Snapshot & Decommission Zombie VM ${r.resource_name} (${r.resource_id}) (Saves ₹${Math.round(r.monthly_savings_inr)}/mo)`,
+          `resource "utho_snapshot" "${safeLabel}_archive" {`,
+          `  instance_id       = "${r.resource_id}"`,
+          `  name              = "archive-pre-decommission-${r.resource_id}"`,
+          `  retention_days    = 30`,
+          `  destroy_source_vm = true`,
+          `}`,
+          ''
+        );
+      } else {
+        const isVol = String(r.resource_type).includes('vol') || String(r.resource_type).includes('ssd');
+        cliLines.push(
+          `# Cleanup Orphaned ${isVol ? 'Volume' : 'Public IP'} ${r.resource_name} (${r.resource_id}) (Saves ₹${Math.round(r.monthly_savings_inr)}/mo)`,
+          isVol
+            ? `utho volume delete --id ${r.resource_id} --force`
+            : `utho ip release --id ${r.resource_id}`,
+          ''
+        );
+        tfLines.push(
+          `# Purge Orphaned ${isVol ? 'Block Volume' : 'Floating IPv4'} ${r.resource_name} (${r.resource_id}) (Saves ₹${Math.round(r.monthly_savings_inr)}/mo)`,
+          `moved {`,
+          `  from = ${isVol ? 'utho_block_volume' : 'utho_floating_ip'}.${safeLabel}`,
+          `  to   = utho_decommissioned_asset.${safeLabel}`,
+          `}`,
+          `resource "utho_decommissioned_asset" "${safeLabel}" {`,
+          `  resource_id   = "${r.resource_id}"`,
+          `  resource_type = "${r.resource_type}"`,
+          `  region        = "${r.region}"`,
+          `  action        = "${isVol ? 'snapshot_and_delete_volume' : 'release_unattached_ip'}"`,
+          `}`,
+          ''
+        );
+      }
+    }
+
+    return {
+      utho_cli_script: cliLines.join('\n'),
+      terraform_hcl: tfLines.join('\n'),
+      csv_report: csvLines.join('\n'),
+    };
+  }, [recommendationsData]);
+
   // Open Export Modal
   const handleOpenExportModal = async () => {
     setIsExportModalOpen(true);
     setIsExportLoading(true);
+    const localFallback = buildLocalRemediationExport();
     try {
       const data = await apiClient.getRemediationExport();
-      setExportData(data);
+      const hasTerraformResources = Boolean(data?.terraform_hcl && data.terraform_hcl.includes('resource "'));
+      setExportData({
+        utho_cli_script: hasTerraformResources && data?.utho_cli_script ? data.utho_cli_script : localFallback.utho_cli_script,
+        terraform_hcl: hasTerraformResources && data?.terraform_hcl ? data.terraform_hcl : localFallback.terraform_hcl,
+        csv_report: hasTerraformResources && data?.csv_report ? data.csv_report : localFallback.csv_report,
+      });
+    } catch {
+      setExportData(localFallback);
     } finally {
       setIsExportLoading(false);
     }
