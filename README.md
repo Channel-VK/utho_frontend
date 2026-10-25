@@ -1,5 +1,9 @@
 # FinSort — Utho Cloud FinOps & Resource Optimization UI (`utho_frontend`)
 
+[![Launch Live Platform — utho.risvanth.online](https://img.shields.io/badge/LIVE_DEPLOYMENT-utho.risvanth.online-111318?style=for-the-badge&labelColor=1D5C46)](http://utho.risvanth.online)
+
+**Live Demo:** **[http://utho.risvanth.online](http://utho.risvanth.online)**
+
 > **Jury Overview:** FinSort is an end-to-end Cloud Cost & Resource Optimization platform purpose-built for **Utho Cloud** (`in-mumbai-1`, `in-noida-1`, `in-bangalore-1`). After a 40% cloud spend increase over 6 months (`₹4,85,000/mo → ₹6,79,000/mo`), FinSort analyzes 30-day hourly telemetry across **85 cloud resources** (VMs, Block SSD Volumes, Public IPv4s) to deliver **`p95`/`p99` peak-safe rightsizing**, **Temporal Fusion Transformer (TFT) P10/P50/P90 forecasting**, **anomaly root-cause alerts**, **interactive What-If simulations**, and **1-click Terraform HCL & Utho CLI remediation manifests**.
 
 ---
