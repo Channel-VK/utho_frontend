@@ -316,8 +316,11 @@ export const ChatbotPopup: React.FC<ChatbotPopupProps> = ({
                     <div className="text-[9px] uppercase font-sans font-semibold text-[#767D8C]">
                       Grounded Telemetry
                     </div>
-                    <div className="space-y-1.5">
-                      {Object.entries(msg.data).map(([key, val]) => (
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {Object.entries(msg.data)
+                        .filter(([key]) => !['resources', 'recommendations', 'inventory_resources', 'knowledge_base_nodes', 'sources', 'pricing_catalog_inr', 'active_alerts'].includes(key))
+                        .slice(0, 8)
+                        .map(([key, val]) => (
                         <div
                           key={key}
                           className="bg-[#F9FAFB] p-2 rounded-lg border border-black/[0.06]"

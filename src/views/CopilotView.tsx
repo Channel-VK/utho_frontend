@@ -326,8 +326,11 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
                       <div className="text-[10px] uppercase tracking-wider font-semibold text-[#767D8C]">
                         Grounded Telemetry Payload
                       </div>
-                      <div className="space-y-2">
-                        {Object.entries(msg.data).map(([key, val]) => (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {Object.entries(msg.data)
+                          .filter(([key]) => !['resources', 'recommendations', 'inventory_resources', 'knowledge_base_nodes', 'sources', 'pricing_catalog_inr', 'active_alerts'].includes(key))
+                          .slice(0, 8)
+                          .map(([key, val]) => (
                           <div
                             key={key}
                             className="bg-white/80 p-2.5 rounded-lg border border-black/[0.05]"
