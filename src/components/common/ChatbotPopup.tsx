@@ -42,12 +42,12 @@ function renderTelemetryValue(val: unknown, key?: string, depth = 0): React.Reac
   if (typeof val === 'number') {
     const k = (key || '').toLowerCase();
     if (k.includes('inr') || k.includes('cost') || k.includes('saving') || k.includes('spend') || k.includes('bleed') || k.includes('runway') || k.includes('rate')) {
-      return <span className="font-semibold text-[#111318]">{formatINR(val)}</span>;
+      return <span className="font-semibold text-[#111318] tabular-nums">{formatINR(val)}</span>;
     }
     if (k.includes('pct') || k.includes('percent') || k.includes('p95') || k.includes('p99') || k.includes('ratio')) {
-      return <span>{val.toFixed(1)}%</span>;
+      return <span className="tabular-nums">{val.toFixed(1)}%</span>;
     }
-    return <span>{Number.isInteger(val) ? val.toLocaleString() : val.toFixed(2)}</span>;
+    return <span className="tabular-nums">{Number.isInteger(val) ? val.toLocaleString() : val.toFixed(2)}</span>;
   }
 
   if (typeof val === 'boolean') {
@@ -73,7 +73,7 @@ function renderTelemetryValue(val: unknown, key?: string, depth = 0): React.Reac
       return (
         <div className="flex flex-wrap gap-1 mt-0.5">
           {val.map((item, idx) => (
-            <span key={idx} className="inline-block px-1.5 py-0.5 rounded bg-black/[0.04] text-[10px] font-mono text-[#111318]">
+            <span key={idx} className="inline-block px-1.5 py-0.5 rounded bg-black/[0.04] text-[10px] font-sans text-[#111318]">
               {item === null || item === undefined ? '—' : String(item)}
             </span>
           ))}
@@ -83,7 +83,7 @@ function renderTelemetryValue(val: unknown, key?: string, depth = 0): React.Reac
     return (
       <div className="space-y-1.5 mt-1 max-h-56 overflow-y-auto pr-0.5">
         {val.slice(0, 8).map((item, idx) => (
-          <div key={idx} className="p-2 bg-white/95 rounded-lg border border-black/[0.07] text-[10px] font-mono space-y-1 shadow-2xs">
+          <div key={idx} className="p-2 bg-white rounded-lg border border-black/[0.08] text-[10px] font-sans space-y-1 shadow-2xs">
             {typeof item === 'object' && item !== null ? (
               Object.entries(item).map(([k, v]) => (
                 <div key={k} className="flex items-center justify-between gap-2">
@@ -99,7 +99,7 @@ function renderTelemetryValue(val: unknown, key?: string, depth = 0): React.Reac
           </div>
         ))}
         {val.length > 8 && (
-          <div className="text-[9px] text-[#767D8C] text-center font-mono">+{val.length - 8} more items</div>
+          <div className="text-[9px] text-[#767D8C] text-center font-sans">+{val.length - 8} more items</div>
         )}
       </div>
     );
@@ -130,7 +130,7 @@ export const ChatbotPopup: React.FC<ChatbotPopupProps> = ({
   onClose,
   isAIConnected = false,
   currentSpendInr = 683200,
-  acceptedSavingsInr = 150310,
+  acceptedSavingsInr = 0,
 }) => {
   const [conversationId, setConversationId] = useState<string>(() => `popup-${Date.now()}`);
   const [messages, setMessages] = useState<ChatMessageItem[]>(() => [
@@ -224,11 +224,11 @@ export const ChatbotPopup: React.FC<ChatbotPopupProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed bottom-6 right-6 w-[430px] max-w-[94vw] h-[610px] max-h-[86vh] z-50 glass-card rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-black/[0.12] animate-in fade-in slide-in-from-bottom-5 duration-200">
+    <div className="fixed bottom-6 right-6 w-[430px] max-w-[94vw] h-[610px] max-h-[86vh] z-50 bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-black/[0.15] animate-in fade-in slide-in-from-bottom-5 duration-200">
       {/* POPUP HEADER */}
-      <div className="p-4 border-b border-black/[0.08] bg-white/85 backdrop-blur-xl flex items-center justify-between shrink-0">
+      <div className="p-4 border-b border-black/[0.08] bg-white flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-[#111318] text-white flex items-center justify-center text-xs font-mono font-bold shadow-xs">
+          <div className="w-8 h-8 rounded-xl bg-[#111318] text-white flex items-center justify-center text-xs font-sans font-bold shadow-xs">
             FS
           </div>
           <div className="flex flex-col">
@@ -237,14 +237,14 @@ export const ChatbotPopup: React.FC<ChatbotPopupProps> = ({
                 FinSort Copilot
               </span>
               <span
-                className={`text-[9px] font-mono px-1.5 py-0.2 rounded font-semibold ${
+                className={`text-[9px] font-sans px-1.5 py-0.2 rounded font-semibold ${
                   isAIConnected ? 'status-green' : 'status-yellow'
                 }`}
               >
                 {isAIConnected ? 'Online' : 'Standby Engine'}
               </span>
             </div>
-            <span className="text-[10px] text-[#767D8C] font-mono">
+            <span className="text-[10px] text-[#767D8C] font-sans">
               85 Utho Nodes (Noida · BLR · Mumbai) · Peak Governor p99 &lt; 85%
             </span>
           </div>
@@ -255,7 +255,7 @@ export const ChatbotPopup: React.FC<ChatbotPopupProps> = ({
             type="button"
             onClick={handleResetSession}
             title="Reset Chat Session"
-            className="p-1.5 rounded-lg glass-well hover:bg-black/[0.08] text-[#4A505C] hover:text-[#111318] text-[11px] font-mono transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg bg-black/[0.04] hover:bg-black/[0.08] text-[#4A505C] hover:text-[#111318] text-[11px] font-sans font-medium transition-colors cursor-pointer border border-black/[0.06]"
           >
             Reset
           </button>
@@ -263,7 +263,7 @@ export const ChatbotPopup: React.FC<ChatbotPopupProps> = ({
             type="button"
             onClick={onClose}
             title="Close Copilot Popup"
-            className="w-7 h-7 rounded-lg glass-well hover:bg-black/[0.08] text-[#111318] font-bold flex items-center justify-center text-xs transition-colors cursor-pointer"
+            className="w-7 h-7 rounded-lg bg-black/[0.04] hover:bg-black/[0.08] text-[#111318] font-bold flex items-center justify-center text-xs transition-colors cursor-pointer border border-black/[0.06]"
           >
             ✕
           </button>
@@ -271,12 +271,12 @@ export const ChatbotPopup: React.FC<ChatbotPopupProps> = ({
       </div>
 
       {/* QUICK CONTEXT STRIP */}
-      <div className="px-4 py-2 bg-black/[0.02] border-b border-black/[0.05] flex items-center justify-between text-[10px] font-mono text-[#767D8C] shrink-0">
+      <div className="px-4 py-2 bg-[#F9FAFB] border-b border-black/[0.06] flex items-center justify-between text-[10px] font-sans text-[#767D8C] shrink-0">
         <div>
-          Spend: <span className="text-[#111318] font-semibold">{formatINR(currentSpendInr)}</span>
+          Spend: <span className="text-[#111318] font-semibold tabular-nums">{formatINR(currentSpendInr)}</span>
         </div>
         <div>
-          Saved: <span className="text-[#236B52] font-semibold">{formatINR(acceptedSavingsInr)}</span>
+          Saved: <span className="text-[#236B52] font-semibold tabular-nums">{formatINR(acceptedSavingsInr)}</span>
         </div>
         <div className="text-[9px] uppercase px-1.5 py-0.5 rounded status-green font-semibold">
           Live Sync
@@ -284,7 +284,7 @@ export const ChatbotPopup: React.FC<ChatbotPopupProps> = ({
       </div>
 
       {/* MESSAGE STREAM */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3.5 text-xs">
+      <div className="flex-1 overflow-y-auto p-4 space-y-3.5 text-xs bg-[#F9FAFB]">
         {messages.map((msg, idx) => {
           const isUser = msg.role === 'user';
           return (
@@ -292,10 +292,10 @@ export const ChatbotPopup: React.FC<ChatbotPopupProps> = ({
               key={idx}
               className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} space-y-1`}
             >
-              <div className="flex items-center gap-1.5 px-1 text-[10px] font-mono text-[#767D8C]">
+              <div className="flex items-center gap-1.5 px-1 text-[10px] font-sans text-[#767D8C]">
                 <span>{isUser ? 'You' : 'FinSort Copilot'}</span>
                 {msg.tool && (
-                  <span className="text-[9px] font-mono px-1.5 py-0.2 rounded status-green">
+                  <span className="text-[9px] font-sans px-1.5 py-0.2 rounded status-green">
                     {msg.tool}
                   </span>
                 )}
@@ -306,26 +306,26 @@ export const ChatbotPopup: React.FC<ChatbotPopupProps> = ({
                 className={`p-3 rounded-xl max-w-[92%] leading-relaxed ${
                   isUser
                     ? 'bg-[#111318] text-white shadow-xs'
-                    : 'glass-well text-[#111318] border border-black/[0.06]'
+                    : 'bg-white border border-black/[0.08] text-[#111318] shadow-xs'
                 }`}
               >
                 <p className="whitespace-pre-wrap">{typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content, null, 2)}</p>
 
                 {msg.data && typeof msg.data === 'object' && (
                   <div className="mt-2.5 pt-2.5 border-t border-black/[0.08] space-y-2">
-                    <div className="text-[9px] uppercase font-mono font-semibold text-[#767D8C]">
+                    <div className="text-[9px] uppercase font-sans font-semibold text-[#767D8C]">
                       Grounded Telemetry
                     </div>
                     <div className="space-y-1.5">
                       {Object.entries(msg.data).map(([key, val]) => (
                         <div
                           key={key}
-                          className="bg-white/80 p-2 rounded-lg border border-black/[0.05]"
+                          className="bg-[#F9FAFB] p-2 rounded-lg border border-black/[0.06]"
                         >
-                          <div className="text-[9px] uppercase font-mono text-[#767D8C] truncate font-semibold">
+                          <div className="text-[9px] uppercase font-sans text-[#767D8C] truncate font-semibold">
                             {key.replace(/_/g, ' ')}
                           </div>
-                          <div className="text-[11px] font-medium text-[#111318] font-mono mt-0.5">
+                          <div className="text-[11px] font-medium text-[#111318] font-sans mt-0.5 tabular-nums">
                             {renderTelemetryValue(val, key)}
                           </div>
                         </div>
@@ -340,8 +340,8 @@ export const ChatbotPopup: React.FC<ChatbotPopupProps> = ({
 
         {isLoading && (
           <div className="flex flex-col items-start space-y-1">
-            <span className="text-[10px] font-mono text-[#767D8C] px-1">FinSort Copilot</span>
-            <div className="p-3 rounded-xl glass-well text-xs text-[#767D8C] flex items-center gap-2 border border-black/[0.06]">
+            <span className="text-[10px] font-sans text-[#767D8C] px-1">FinSort Copilot</span>
+            <div className="p-3 rounded-xl bg-white text-xs text-[#767D8C] flex items-center gap-2 border border-black/[0.08] shadow-xs">
               <div className="w-3 h-3 border-2 border-[#111318] border-t-transparent rounded-full animate-spin" />
               <span>Analyzing TimescaleDB telemetry...</span>
             </div>
@@ -351,14 +351,14 @@ export const ChatbotPopup: React.FC<ChatbotPopupProps> = ({
       </div>
 
       {/* QUICK PROMPT CHIPS */}
-      <div className="px-3 pt-2 pb-1 border-t border-black/[0.05] bg-white/60 flex items-center gap-1.5 overflow-x-auto scrollbar-none shrink-0">
+      <div className="px-3 pt-2 pb-1 border-t border-black/[0.06] bg-white flex items-center gap-1.5 overflow-x-auto scrollbar-none shrink-0">
         {QUICK_PROMPTS.map((prompt, idx) => (
           <button
             key={idx}
             type="button"
             onClick={() => handleSend(prompt)}
             disabled={isLoading}
-            className="shrink-0 text-left text-[10px] px-2.5 py-1 rounded-lg glass-well hover:bg-black/[0.06] text-[#4A505C] hover:text-[#111318] transition-colors border border-black/[0.05] cursor-pointer"
+            className="shrink-0 text-left text-[10px] px-2.5 py-1 rounded-lg bg-[#F9FAFB] hover:bg-black/[0.06] text-[#4A505C] hover:text-[#111318] transition-colors border border-black/[0.06] cursor-pointer font-sans"
           >
             {prompt}
           </button>
@@ -366,8 +366,8 @@ export const ChatbotPopup: React.FC<ChatbotPopupProps> = ({
       </div>
 
       {/* INPUT FORM */}
-      <div className="p-3 border-t border-black/[0.08] bg-white/95 backdrop-blur-xl shrink-0 space-y-1.5">
-        <div className="relative flex items-end gap-2 bg-black/[0.03] p-1.5 rounded-xl border border-black/[0.07]">
+      <div className="p-3 border-t border-black/[0.08] bg-white shrink-0 space-y-1.5">
+        <div className="relative flex items-end gap-2 bg-[#F9FAFB] p-1.5 rounded-xl border border-black/[0.08]">
           <textarea
             ref={inputRef}
             rows={2}
@@ -387,7 +387,7 @@ export const ChatbotPopup: React.FC<ChatbotPopupProps> = ({
           </button>
         </div>
 
-        <div className="flex items-center justify-between text-[9px] text-[#767D8C] px-1 font-mono">
+        <div className="flex items-center justify-between text-[9px] text-[#767D8C] px-1 font-sans">
           <span>Enter to send · Shift+Enter newline</span>
           <span>TimescaleDB &amp; Gateway (:8080)</span>
         </div>

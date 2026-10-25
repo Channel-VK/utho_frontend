@@ -224,7 +224,7 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
                 FinSort Copilot
               </h2>
               <span
-                className={`text-[10px] font-mono px-2 py-0.5 rounded-md font-semibold ${
+                className={`text-[10px] font-sans px-2 py-0.5 rounded-md font-semibold ${
                   isAIConnected ? 'status-green' : 'status-yellow'
                 }`}
               >
@@ -237,9 +237,9 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="glass-well px-3 py-1.5 rounded-xl flex items-center gap-2 text-xs font-mono text-[#4A505C]">
+            <div className="glass-well px-3 py-1.5 rounded-xl flex items-center gap-2 text-xs font-sans text-[#4A505C]">
               <span className="text-[10px] text-[#767D8C] uppercase tracking-wider">Session:</span>
-              <span className="text-[#111318] font-semibold">{conversationId.slice(0, 14)}...</span>
+              <span className="text-[#111318] font-mono font-semibold">{conversationId.slice(0, 14)}...</span>
             </div>
             <button
               type="button"
@@ -258,7 +258,7 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
               Fleet Indexed
             </div>
             <div className="text-sm font-semibold text-[#111318] mt-0.5">85 Utho Nodes</div>
-            <div className="text-[10px] text-[#767D8C] font-mono mt-0.5">Noida · Blr · Mumbai</div>
+            <div className="text-[10px] text-[#767D8C] font-sans mt-0.5">Noida · Blr · Mumbai</div>
           </div>
 
           <div className="glass-well p-3 rounded-xl">
@@ -266,7 +266,7 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
               Time-Series DB
             </div>
             <div className="text-sm font-semibold text-[#111318] mt-0.5">TimescaleDB Telemetry</div>
-            <div className="text-[10px] text-[#236B52] font-mono mt-0.5">Hypertables Synced</div>
+            <div className="text-[10px] text-[#236B52] font-sans mt-0.5">Hypertables Synced</div>
           </div>
 
           <div className="glass-well p-3 rounded-xl">
@@ -274,7 +274,7 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
               Peak Safety
             </div>
             <div className="text-sm font-semibold text-[#111318] mt-0.5">p95/p99 Governor</div>
-            <div className="text-[10px] text-[#111318] font-mono mt-0.5">Projected p99 &lt; 85%</div>
+            <div className="text-[10px] text-[#111318] font-sans tabular-nums mt-0.5">Projected p99 &lt; 85%</div>
           </div>
 
           <div className="glass-well p-3 rounded-xl">
@@ -282,7 +282,7 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
               Currencies &amp; SLA
             </div>
             <div className="text-sm font-semibold text-[#111318] mt-0.5">₹ Indian Rupee</div>
-            <div className="text-[10px] text-[#236B52] font-mono mt-0.5">Zero Downtime Risk</div>
+            <div className="text-[10px] text-[#236B52] font-sans mt-0.5">Zero Downtime Risk</div>
           </div>
         </div>
       </div>
@@ -298,15 +298,15 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
                 className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} space-y-1.5`}
               >
                 {/* Sender badge */}
-                <div className="flex items-center gap-2 px-1 text-[11px] font-mono text-[#767D8C]">
+                <div className="flex items-center gap-2 px-1 text-[11px] font-sans text-[#767D8C]">
                   <span>{isUser ? 'Alex Rivera (SRE)' : 'FinSort Copilot'}</span>
                   {msg.tool && (
-                    <span className="text-[10px] font-mono px-2 py-0.2 rounded-md status-green">
+                    <span className="text-[10px] font-sans px-2 py-0.2 rounded-md status-green">
                       tool: {msg.tool}
                     </span>
                   )}
                   {msg.created_at && (
-                    <span>{formatTime(msg.created_at)}</span>
+                    <span className="tabular-nums">{formatTime(msg.created_at)}</span>
                   )}
                 </div>
 
@@ -332,10 +332,10 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
                             key={key}
                             className="bg-white/80 p-2.5 rounded-lg border border-black/[0.05]"
                           >
-                            <div className="text-[9px] uppercase font-mono text-[#767D8C] truncate font-semibold">
+                            <div className="text-[9px] uppercase font-sans text-[#767D8C] truncate font-semibold">
                               {key.replace(/_/g, ' ')}
                             </div>
-                            <div className="text-xs font-medium text-[#111318] font-mono mt-0.5">
+                            <div className="text-xs font-medium text-[#111318] font-sans tabular-nums mt-0.5">
                               {renderTelemetryValue(val, key)}
                             </div>
                           </div>
@@ -350,7 +350,7 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
 
           {isLoading && (
             <div className="flex flex-col items-start space-y-1.5">
-              <div className="flex items-center gap-2 px-1 text-[11px] font-mono text-[#767D8C]">
+              <div className="flex items-center gap-2 px-1 text-[11px] font-sans text-[#767D8C]">
                 <span>FinSort Copilot</span>
                 <span className="status-yellow text-[10px] px-2 py-0.2 rounded-md">
                   Analyzing TimescaleDB Telemetry...
@@ -369,7 +369,7 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
         <div className="mt-6 pt-4 border-t border-black/[0.06] space-y-3">
           {/* Suggested Prompts Carousel */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-            <span className="text-[10px] uppercase font-mono font-semibold tracking-wider text-[#767D8C] shrink-0">
+            <span className="text-[10px] uppercase font-sans font-semibold tracking-wider text-[#767D8C] shrink-0">
               Quick Inquiries:
             </span>
             {QUICK_PROMPTS.map((prompt, idx) => (
@@ -406,7 +406,7 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
             </button>
           </div>
 
-          <div className="flex items-center justify-between text-[10px] text-[#767D8C] px-1 font-mono">
+          <div className="flex items-center justify-between text-[10px] text-[#767D8C] px-1 font-sans">
             <span>Press Enter to send · Shift+Enter for newline</span>
             <span>Grounded across TimescaleDB &amp; Go FinOps Gateway (:8080)</span>
           </div>

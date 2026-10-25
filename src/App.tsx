@@ -16,6 +16,8 @@ import type {
   DashboardResponse,
   Resource,
   ResourceDetail,
+  Recommendation,
+  RecommendationsSummary,
   RecommendationsResponse,
   AnomalyAlert,
   AssumptionsResponse,
@@ -23,6 +25,111 @@ import type {
   SimulationParams,
   SimulationResult,
 } from './types/api';
+
+const DECISIONS_STORAGE_KEY = 'finsort_recommendation_decisions';
+
+function loadStoredDecisions(): Record<string, 'accepted' | 'rejected' | 'pending'> {
+  try {
+    const raw = localStorage.getItem(DECISIONS_STORAGE_KEY);
+    if (!raw) return {};
+    return JSON.parse(raw) || {};
+  } catch {
+    return {};
+  }
+}
+
+function saveStoredDecisions(decisions: Record<string, 'accepted' | 'rejected' | 'pending'>) {
+  try {
+    localStorage.setItem(DECISIONS_STORAGE_KEY, JSON.stringify(decisions));
+  } catch (err) {
+    console.error('Failed to save recommendation decisions to localStorage:', err);
+  }
+}
+
+function recomputeSummaryFromItems(items: Recommendation[], currentSpend: number): RecommendationsSummary {
+  let acceptedSavings = 0;
+  let acceptedCount = 0;
+  let rejectedCount = 0;
+  let pendingCount = 0;
+
+  for (const item of items) {
+    if (item.status === 'accepted') {
+      acceptedCount++;
+      acceptedSavings += item.monthly_savings_inr;
+    } else if (item.status === 'rejected') {
+      rejectedCount++;
+    } else {
+      pendingCount++;
+    }
+  }
+
+  const projectedSpend = Math.max(0, currentSpend - acceptedSavings);
+  const acceptedSavingsPct = currentSpend > 0 ? Number(((acceptedSavings / currentSpend) * 100).toFixed(1)) : 0;
+
+  return {
+    current_monthly_inr: currentSpend,
+    projected_monthly_inr: projectedSpend,
+    accepted_savings_inr: acceptedSavings,
+    accepted_savings_pct: acceptedSavingsPct,
+    accepted_count: acceptedCount,
+    rejected_count: rejectedCount,
+    pending_count: pendingCount,
+  };
+}
+
+function applyStoredDecisions(
+  recs: RecommendationsResponse,
+  currentSpend: number
+): { recs: RecommendationsResponse; modified: boolean } {
+  const decisions = loadStoredDecisions();
+  if (Object.keys(decisions).length === 0 || !recs?.items) {
+    return { recs, modified: false };
+  }
+
+  let modified = false;
+  let acceptedSavings = 0;
+  let acceptedCount = 0;
+  let rejectedCount = 0;
+  let pendingCount = 0;
+
+  const items = recs.items.map((item) => {
+    const decision = decisions[item.id];
+    const status = decision || item.status || 'pending';
+    if (decision && decision !== item.status) {
+      modified = true;
+    }
+    if (status === 'accepted') {
+      acceptedCount++;
+      acceptedSavings += item.monthly_savings_inr;
+    } else if (status === 'rejected') {
+      rejectedCount++;
+    } else {
+      pendingCount++;
+    }
+    return { ...item, status: status as 'accepted' | 'rejected' | 'pending' };
+  });
+
+  const projectedSpend = Math.max(0, currentSpend - acceptedSavings);
+  const acceptedSavingsPct = currentSpend > 0 ? Number(((acceptedSavings / currentSpend) * 100).toFixed(1)) : 0;
+
+  return {
+    recs: {
+      summary: {
+        current_monthly_inr: currentSpend,
+        projected_monthly_inr: projectedSpend,
+        accepted_savings_inr: acceptedSavings,
+        accepted_savings_pct: acceptedSavingsPct,
+        accepted_count: acceptedCount,
+        rejected_count: rejectedCount,
+        pending_count: pendingCount,
+        by_env: recs.summary?.by_env,
+        by_action: recs.summary?.by_action,
+      },
+      items,
+    },
+    modified,
+  };
+}
 
 export function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
@@ -66,10 +173,17 @@ export function App() {
 
   const refreshDashboardAndRecs = async () => {
     try {
-      const [dash, recs] = await Promise.all([
+      const [dash, rawRecs] = await Promise.all([
         apiClient.getDashboard(),
         apiClient.getRecommendations(),
       ]);
+      const baselineSpend = dash?.current_monthly_spend_inr || 683200;
+      const { recs, modified } = applyStoredDecisions(rawRecs, baselineSpend);
+      if (modified) {
+        dash.accepted_monthly_savings_inr = recs.summary.accepted_savings_inr;
+        dash.projected_monthly_spend_inr = recs.summary.projected_monthly_inr;
+        dash.accepted_savings_pct = recs.summary.accepted_savings_pct;
+      }
       setDashboardData(dash);
       setRecommendationsData(recs);
       if (typeof dash.ai_engine_connected === 'boolean') {
@@ -90,13 +204,28 @@ export function App() {
           setIsAIConnected(status.aiConnected);
         }
 
-        const [dash, resList, recs, alts, asm] = await Promise.all([
+        const [dash, resList, rawRecs, alts, asm] = await Promise.all([
           apiClient.getDashboard(),
           apiClient.getResources(),
           apiClient.getRecommendations(),
           apiClient.getAlerts(),
           apiClient.getAssumptions(),
         ]);
+
+        const baselineSpend = dash?.current_monthly_spend_inr || 683200;
+        const { recs, modified } = applyStoredDecisions(rawRecs, baselineSpend);
+
+        if (modified) {
+          dash.accepted_monthly_savings_inr = recs.summary.accepted_savings_inr;
+          dash.projected_monthly_spend_inr = recs.summary.projected_monthly_inr;
+          dash.accepted_savings_pct = recs.summary.accepted_savings_pct;
+
+          // Synchronize saved decisions with backend in background
+          const decisions = loadStoredDecisions();
+          for (const [id, decision] of Object.entries(decisions)) {
+            apiClient.patchRecommendation(id, decision).catch(() => {});
+          }
+        }
 
         if (mounted) {
           setDashboardData(dash);
@@ -149,6 +278,23 @@ export function App() {
 
   // Handle Accept Recommendation
   const handleAcceptRecommendation = async (id: string) => {
+    // 1. Immediately persist decision to localStorage
+    const stored = loadStoredDecisions();
+    stored[id] = 'accepted';
+    saveStoredDecisions(stored);
+
+    // 2. Immediately update UI state optimistically
+    const currentSpendVal = dashboardData?.current_monthly_spend_inr || 683200;
+    setRecommendationsData((prev) => {
+      if (!prev) return prev;
+      const updatedItems = prev.items.map((it) =>
+        it.id === id ? { ...it, status: 'accepted' as const } : it
+      );
+      const summary = recomputeSummaryFromItems(updatedItems, currentSpendVal);
+      return { summary, items: updatedItems };
+    });
+
+    // 3. Send update to backend and refresh
     await apiClient.patchRecommendation(id, 'accepted');
     await refreshDashboardAndRecs();
 
@@ -160,6 +306,23 @@ export function App() {
 
   // Handle Reject Recommendation
   const handleRejectRecommendation = async (id: string) => {
+    // 1. Immediately persist decision to localStorage
+    const stored = loadStoredDecisions();
+    stored[id] = 'rejected';
+    saveStoredDecisions(stored);
+
+    // 2. Immediately update UI state optimistically
+    const currentSpendVal = dashboardData?.current_monthly_spend_inr || 683200;
+    setRecommendationsData((prev) => {
+      if (!prev) return prev;
+      const updatedItems = prev.items.map((it) =>
+        it.id === id ? { ...it, status: 'rejected' as const } : it
+      );
+      const summary = recomputeSummaryFromItems(updatedItems, currentSpendVal);
+      return { summary, items: updatedItems };
+    });
+
+    // 3. Send update to backend and refresh
     await apiClient.patchRecommendation(id, 'rejected');
     await refreshDashboardAndRecs();
 
@@ -171,6 +334,26 @@ export function App() {
 
   // Bulk Accept Low-Risk
   const handleBulkAcceptLowRisk = async () => {
+    // 1. Immediately persist decision to localStorage for all LOW risk items
+    const stored = loadStoredDecisions();
+    const lowRiskItems = recommendationsData?.items.filter((r) => r.risk_level === 'LOW') || [];
+    for (const item of lowRiskItems) {
+      stored[item.id] = 'accepted';
+    }
+    saveStoredDecisions(stored);
+
+    // 2. Immediately update UI state optimistically
+    const currentSpendVal = dashboardData?.current_monthly_spend_inr || 683200;
+    setRecommendationsData((prev) => {
+      if (!prev) return prev;
+      const updatedItems = prev.items.map((it) =>
+        it.risk_level === 'LOW' ? { ...it, status: 'accepted' as const } : it
+      );
+      const summary = recomputeSummaryFromItems(updatedItems, currentSpendVal);
+      return { summary, items: updatedItems };
+    });
+
+    // 3. Send update to backend and refresh
     await apiClient.bulkRecommendations('accepted', 'LOW_ONLY');
     await refreshDashboardAndRecs();
 
@@ -206,6 +389,26 @@ export function App() {
       );
     });
 
+    // 1. Immediately persist decision to localStorage
+    const stored = loadStoredDecisions();
+    for (const item of itemsToAccept) {
+      stored[item.id] = 'accepted';
+    }
+    saveStoredDecisions(stored);
+
+    // 2. Immediately update UI state optimistically
+    const currentSpendVal = dashboardData?.current_monthly_spend_inr || 683200;
+    setRecommendationsData((prev) => {
+      if (!prev) return prev;
+      const acceptedIds = new Set(itemsToAccept.map((i) => i.id));
+      const updatedItems = prev.items.map((it) =>
+        acceptedIds.has(it.id) ? { ...it, status: 'accepted' as const } : it
+      );
+      const summary = recomputeSummaryFromItems(updatedItems, currentSpendVal);
+      return { summary, items: updatedItems };
+    });
+
+    // 3. Send updates to backend and refresh
     await Promise.all(
       itemsToAccept.map((item) => apiClient.patchRecommendation(item.id, 'accepted'))
     );
@@ -296,7 +499,7 @@ export function App() {
   const acceptedSavings =
     recommendationsData?.summary?.accepted_savings_inr ??
     dashboardData?.accepted_monthly_savings_inr ??
-    150310;
+    0;
   const projectedSpend =
     recommendationsData?.summary?.projected_monthly_inr ??
     dashboardData?.projected_monthly_spend_inr ??
@@ -304,9 +507,11 @@ export function App() {
   const acceptedSavingsPct =
     recommendationsData?.summary?.accepted_savings_pct ??
     dashboardData?.accepted_savings_pct ??
-    (currentSpend > 0 ? Math.round((acceptedSavings / currentSpend) * 1000) / 10 : 22.0);
+    (currentSpend > 0 ? Math.round((acceptedSavings / currentSpend) * 1000) / 10 : 0.0);
   const totalPotentialSavings =
-    dashboardData?.total_potential_savings_inr || 277230;
+    dashboardData?.total_potential_savings_inr ||
+    recommendationsData?.items?.reduce((acc, r) => acc + r.monthly_savings_inr, 0) ||
+    277230;
 
   return (
     <div className="min-h-screen text-[#111318] flex font-sans">
@@ -433,7 +638,7 @@ export function App() {
         <button
           type="button"
           onClick={() => setIsChatbotPopupOpen(true)}
-          className="fixed bottom-6 right-6 z-40 bg-[#111318] hover:bg-[#232730] text-white px-4 py-2.5 rounded-full shadow-2xl flex items-center gap-2 text-xs font-semibold font-mono border border-white/10 backdrop-blur-xl transition-all cursor-pointer hover:scale-105 active:scale-95 shadow-black/20"
+          className="fixed bottom-6 right-6 z-40 bg-[#111318] hover:bg-[#232730] text-white px-4 py-2.5 rounded-full shadow-2xl flex items-center gap-2 text-xs font-semibold font-sans border border-white/10 backdrop-blur-xl transition-all cursor-pointer hover:scale-105 active:scale-95 shadow-black/20"
         >
           <span>FinSort Copilot</span>
         </button>

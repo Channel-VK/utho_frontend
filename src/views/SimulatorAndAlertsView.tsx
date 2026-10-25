@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type {
   SimulationParams,
   SimulationResult,
@@ -24,7 +24,7 @@ const NL_EXAMPLE_PROMPTS = [
 
 export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
   alerts,
-  baselineMonthlyInr = 1284500,
+  baselineMonthlyInr = 683200,
   onSimulate,
   onInspectResource,
   onOpenExportModal,
@@ -53,6 +53,10 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
   const [showComparisonModal, setShowComparisonModal] = useState<boolean>(false);
   const [lastSimulatedTime, setLastSimulatedTime] = useState<string>('Live');
 
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const activeRequestIdRef = useRef<number>(0);
+  const skipNextEffectSimRef = useRef<boolean>(false);
+
   const getEffectiveParams = useCallback((): SimulationParams => ({
     dev_off_hours_enabled: params.dev_off_hours_enabled && params.dev_shutdown_hours_per_week > 0,
     dev_shutdown_hours_per_week: params.dev_off_hours_enabled ? params.dev_shutdown_hours_per_week : 0,
@@ -63,47 +67,67 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
   }), [params, stagingHours, bufferEnabled, diskCleanupEnabled]);
 
   const handleManualSimulate = () => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    const requestId = ++activeRequestIdRef.current;
     setIsSimulating(true);
     const eff = getEffectiveParams();
     onSimulate(eff)
       .then((res) => {
-        setSimResult(res);
-        setLastSimulatedTime(new Date().toLocaleTimeString());
-      })
-      .catch((err) => console.error('Simulation failed:', err))
-      .finally(() => setIsSimulating(false));
-  };
-
-  // Trigger live Go backend simulation whenever parameters change
-  useEffect(() => {
-    let cancelled = false;
-    let inFlight = true;
-    const effectiveParams = getEffectiveParams();
-
-    const timer = setTimeout(() => {
-      if (!cancelled && inFlight) {
-        setIsSimulating(true);
-      }
-    }, 50);
-
-    onSimulate(effectiveParams)
-      .then((res) => {
-        if (!cancelled) {
+        if (requestId === activeRequestIdRef.current) {
           setSimResult(res);
           setLastSimulatedTime(new Date().toLocaleTimeString());
         }
       })
-      .catch((err) => console.error('Simulation failed:', err))
+      .catch((err) => {
+        if (requestId === activeRequestIdRef.current) {
+          console.error('Simulation failed:', err);
+        }
+      })
       .finally(() => {
-        inFlight = false;
-        clearTimeout(timer);
-        if (!cancelled) setIsSimulating(false);
+        if (requestId === activeRequestIdRef.current) {
+          setIsSimulating(false);
+        }
       });
+  };
+
+  // Trigger live Go backend simulation whenever parameters change (debounced 220ms)
+  useEffect(() => {
+    // If this update was triggered by NL scenario completion, skip this reactive run
+    if (skipNextEffectSimRef.current) {
+      skipNextEffectSimRef.current = false;
+      return;
+    }
+
+    const effectiveParams = getEffectiveParams();
+    const requestId = ++activeRequestIdRef.current;
+
+    debounceTimerRef.current = setTimeout(() => {
+      setIsSimulating(true);
+      onSimulate(effectiveParams)
+        .then((res) => {
+          if (requestId === activeRequestIdRef.current) {
+            setSimResult(res);
+            setLastSimulatedTime(new Date().toLocaleTimeString());
+          }
+        })
+        .catch((err) => {
+          if (requestId === activeRequestIdRef.current) {
+            console.error('Simulation failed:', err);
+          }
+        })
+        .finally(() => {
+          if (requestId === activeRequestIdRef.current) {
+            setIsSimulating(false);
+          }
+        });
+    }, 220);
 
     return () => {
-      cancelled = true;
-      inFlight = false;
-      clearTimeout(timer);
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
     };
   }, [getEffectiveParams, onSimulate]);
 
@@ -112,23 +136,42 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
     if (!targetQuery) return;
     if (queryText) setScenarioLabel(queryText);
 
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    const requestId = ++activeRequestIdRef.current;
+
     setNlParsing(true);
+    setIsSimulating(true);
     try {
       const parsed = await apiClient.parseNLScenario(targetQuery);
+      if (requestId !== activeRequestIdRef.current) return;
+
+      skipNextEffectSimRef.current = true;
       setNlParsedResult(parsed);
       if (parsed.parsed_params) {
         setParams(parsed.parsed_params);
         setBufferEnabled(true);
         setDiskCleanupEnabled(true);
-        setStagingHours(parsed.parsed_params.staging_weekend_off_enabled ? 72 : 0);
+        setStagingHours(
+          parsed.parsed_params.staging_weekend_off_enabled
+            ? (parsed.parsed_params.staging_shutdown_hours_per_week || 72)
+            : 0
+        );
       }
       if (parsed.simulation_result) {
         setSimResult(parsed.simulation_result);
+        setLastSimulatedTime(new Date().toLocaleTimeString());
       }
     } catch (err) {
-      console.error('NL scenario parsing failed:', err);
+      if (requestId === activeRequestIdRef.current) {
+        console.error('NL scenario parsing failed:', err);
+      }
     } finally {
-      setNlParsing(false);
+      if (requestId === activeRequestIdRef.current) {
+        setNlParsing(false);
+        setIsSimulating(false);
+      }
     }
   };
 
@@ -181,8 +224,8 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="text-xs text-[#525866] font-mono">
-            Monthly Baseline: <span className="font-bold text-[#111318]">{formatINR(baselineInr)}</span>
+          <div className="text-xs text-[#525866] font-sans">
+            Monthly Baseline: <span className="font-bold text-[#111318] tabular-nums">{formatINR(baselineInr)}</span>
           </div>
           <button
             type="button"
@@ -210,7 +253,7 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
                     Adjust fleet operational policies or describe a scenario in plain English to inspect projected INR runway gains.
                   </p>
                 </div>
-                <span className="text-xs font-mono font-semibold px-2.5 py-1 glass-pill-neutral rounded-lg">
+                <span className="text-xs font-sans font-semibold px-2.5 py-1 glass-pill-neutral rounded-lg">
                   FinSort Engine
                 </span>
               </div>
@@ -253,13 +296,13 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
                 <div className="p-3.5 rounded-xl glass-well space-y-1.5">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="px-2 py-0.5 rounded bg-[#111318] text-white text-[10px] font-mono font-bold uppercase">
+                      <span className="px-2 py-0.5 rounded bg-[#111318] text-white text-[10px] font-sans font-bold uppercase">
                         FinSort Policy
                       </span>
                       {(nlParsedResult.parsed_tags || []).map((tag, idx) => (
                         <span
                           key={idx}
-                          className="px-2 py-0.5 rounded glass-pill-neutral text-[11px] font-mono font-semibold"
+                          className="px-2 py-0.5 rounded glass-pill-neutral text-[11px] font-sans font-semibold"
                         >
                           {tag}
                         </span>
@@ -343,7 +386,7 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
                       key={i}
                       type="button"
                       onClick={() => handleRunNLScenario(prompt)}
-                      className="text-[11px] font-mono px-2.5 py-1 rounded-md glass-well hover:bg-black/[0.06] text-[#3F4450] hover:text-[#111318] transition-colors text-left"
+                      className="text-[11px] font-sans px-2.5 py-1 rounded-md glass-well hover:bg-black/[0.06] text-[#3F4450] hover:text-[#111318] transition-colors text-left"
                     >
                       Preset {i + 1}: &ldquo;{prompt.slice(0, 58)}...&rdquo;
                     </button>
@@ -364,7 +407,7 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded glass-pill-neutral">
+                    <span className="text-xs font-sans font-bold tabular-nums px-2.5 py-0.5 rounded glass-pill-neutral">
                       {params.dev_shutdown_hours_per_week} hrs/week
                     </span>
                     <button
@@ -395,7 +438,7 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
                   }
                   className="w-full h-1.5 bg-black/[0.09] rounded-lg appearance-none cursor-pointer slider-minimal"
                 />
-                <div className="flex justify-between text-[10px] font-mono text-[#525866]">
+                <div className="flex justify-between text-[10px] font-sans text-[#525866]">
                   <span>0 hrs (Continuous)</span>
                   <span>70 hrs (Standard)</span>
                   <span>140 hrs (Strict On-Demand)</span>
@@ -412,7 +455,7 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded glass-pill-neutral">
+                    <span className="text-xs font-sans font-bold tabular-nums px-2.5 py-0.5 rounded glass-pill-neutral">
                       {stagingHours} hrs/week
                     </span>
                     <button
@@ -447,7 +490,7 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
                   }}
                   className="w-full h-1.5 bg-black/[0.09] rounded-lg appearance-none cursor-pointer slider-minimal"
                 />
-                <div className="flex justify-between text-[10px] font-mono text-[#525866]">
+                <div className="flex justify-between text-[10px] font-sans text-[#525866]">
                   <span>0 hrs (Always On)</span>
                   <span>60 hrs (Weekend Only)</span>
                   <span>120 hrs (Full Off-Peak)</span>
@@ -464,7 +507,7 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded glass-pill-neutral">
+                    <span className="text-xs font-sans font-bold tabular-nums px-2.5 py-0.5 rounded glass-pill-neutral">
                       {params.safety_headroom_buffer_pct}% headroom
                     </span>
                     <button
@@ -493,7 +536,7 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
                   }}
                   className="w-full h-1.5 bg-black/[0.09] rounded-lg appearance-none cursor-pointer slider-minimal"
                 />
-                <div className="flex justify-between text-[10px] font-mono text-[#525866]">
+                <div className="flex justify-between text-[10px] font-sans text-[#525866]">
                   <span>10% (Tight Fleet)</span>
                   <span>25% (Recommended)</span>
                   <span>60% (Over-Provisioned)</span>
@@ -510,7 +553,7 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded glass-pill-neutral">
+                    <span className="text-xs font-sans font-bold tabular-nums px-2.5 py-0.5 rounded glass-pill-neutral">
                       &gt; {params.purge_orphaned_older_than_days} days idle
                     </span>
                     <button
@@ -539,7 +582,7 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
                   }}
                   className="w-full h-1.5 bg-black/[0.09] rounded-lg appearance-none cursor-pointer slider-minimal"
                 />
-                <div className="flex justify-between text-[10px] font-mono text-[#525866]">
+                <div className="flex justify-between text-[10px] font-sans text-[#525866]">
                   <span>3 Days (Aggressive)</span>
                   <span>14 Days (Standard)</span>
                   <span>60 Days (Conservative)</span>
@@ -553,7 +596,7 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
                 <span className="text-[11px] font-bold uppercase tracking-wider text-[#111318]">
                   Projected Financial &amp; Sustainability Model
                 </span>
-                <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded status-green">
+                <span className="text-[10px] font-sans font-bold px-2.5 py-0.5 rounded status-green">
                   High Confidence (98.4%)
                 </span>
               </div>
@@ -564,7 +607,7 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
                   <div className="text-[11px] uppercase tracking-wider font-semibold text-[#525866]">
                     Current Monthly Baseline
                   </div>
-                  <div className="text-lg font-bold line-through text-[#68707E] font-mono">
+                  <div className="text-lg font-bold line-through text-[#68707E] font-sans tabular-nums">
                     {formatINR(baselineInr)}
                   </div>
                   <div className="text-[11px] text-[#525866]">
@@ -575,7 +618,7 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
                   <div className="text-[11px] uppercase tracking-wider font-bold text-[#111318]">
                     Projected Monthly Bill
                   </div>
-                  <div className="text-2xl font-extrabold text-[#111318] font-mono tracking-tight">
+                  <div className="text-2xl font-extrabold text-[#111318] font-sans tabular-nums tracking-tight">
                     {formatINR(projectedInr)} /mo
                   </div>
                   <div className="text-[11px] text-[#525866] font-medium">
@@ -592,7 +635,7 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
                   <div className="text-xs uppercase font-bold tracking-wider opacity-85">
                     Validated Impact
                   </div>
-                  <div className="text-lg font-extrabold font-mono tracking-tight">
+                  <div className="text-lg font-extrabold font-sans tabular-nums tracking-tight">
                     Net Savings: -{formatINR(netSavingsInr)}/mo ({netSavingsPct}% cut)
                   </div>
                 </div>
@@ -609,7 +652,7 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
                   <div className="text-xs font-bold text-[#111318]">
                     Energy &amp; Carbon Footprint Reduction
                   </div>
-                  <div className="text-xs font-mono text-[#525866] mt-0.5">
+                  <div className="text-xs font-sans text-[#525866] mt-0.5 tabular-nums">
                     {kwhSaved.toLocaleString('en-IN')} kWh/mo saved (~{co2MetricTons} metric tons CO2e reduced)
                   </div>
                 </div>
@@ -619,7 +662,7 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
               </div>
 
               {simResult?.risk_summary && (
-                <div className="p-3 rounded-xl bg-white/60 border border-black/[0.06] text-xs font-mono text-[#3F4450]">
+                <div className="p-3 rounded-xl bg-white/60 border border-black/[0.06] text-xs font-sans text-[#3F4450]">
                   Governor Audit: {simResult.risk_summary}
                 </div>
               )}
@@ -677,7 +720,7 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
             <h3 className="text-base font-bold text-[#111318] tracking-tight">
               Active Incidents &amp; Anomalies
             </h3>
-            <span className="text-xs font-bold font-mono px-2.5 py-1 status-red rounded-full">
+            <span className="text-xs font-bold font-sans px-2.5 py-1 status-red rounded-full">
               {alerts.length} Needs Attention
             </span>
           </div>
@@ -716,13 +759,13 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
                       {alert.id}
                     </span>
                     {alert.statistical_z_score !== undefined && alert.statistical_z_score > 0 && (
-                      <span className="px-2 py-0.5 rounded glass-pill-neutral text-[11px] font-mono font-bold">
+                      <span className="px-2 py-0.5 rounded glass-pill-neutral text-[11px] font-sans font-bold tabular-nums">
                         z={alert.statistical_z_score.toFixed(1)}σ
                       </span>
                     )}
                   </div>
                   <span
-                    className={`text-xs font-mono font-semibold ${
+                    className={`text-xs font-sans font-semibold tabular-nums ${
                       isCritical ? 'text-[#8F2925]' : 'text-[#7C4F14]'
                     }`}
                   >
@@ -734,7 +777,7 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
 
                 {/* Resource & Description */}
                 <div>
-                  <div className="text-xs font-mono font-bold text-[#111318]">
+                  <div className="text-xs font-sans font-bold text-[#111318]">
                     {alert.resource_name || alert.resource_id} / {alert.region || 'in-mumbai-1'}
                   </div>
                   <div className="text-xs font-semibold text-[#111318] mt-0.5">
@@ -745,7 +788,7 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
                     {alert.financial_impact_inr > 0 && (
                       <>
                         Current run-rate impact:{' '}
-                        <span className="font-bold text-[#8F2925] font-mono">
+                        <span className="font-bold text-[#8F2925] font-sans tabular-nums">
                           +{formatINR(alert.financial_impact_inr)}/mo
                         </span>{' '}
                         above baseline.
@@ -760,7 +803,7 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
                     <span className="text-[10px] font-bold uppercase tracking-wider text-[#525866]">
                       Suggested Action &amp; Root-Cause Analysis
                     </span>
-                    <span className="text-[10px] font-mono font-semibold text-[#3F4450]">
+                    <span className="text-[10px] font-sans font-semibold text-[#3F4450]">
                       SRE Correlation
                     </span>
                   </div>
@@ -768,7 +811,7 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
                     {alert.root_cause_correlation || alert.recommended_action}
                   </div>
                   {alert.ttf_formula && (
-                    <div className="text-[11px] font-mono text-[#7C4F14] status-yellow px-2 py-1 rounded">
+                    <div className="text-[11px] font-sans text-[#7C4F14] status-yellow px-2 py-1 rounded">
                       Math: {alert.ttf_formula}
                     </div>
                   )}
@@ -841,7 +884,7 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
                   <h2 className="text-base font-bold text-[#111318]">
                     Baseline vs. What-If Scenario Comparison
                   </h2>
-                  <span className="px-2 py-0.5 rounded-md status-green text-[10px] font-mono font-bold uppercase">
+                  <span className="px-2 py-0.5 rounded-md status-green text-[10px] font-sans font-bold uppercase">
                     Interactive Audit
                   </span>
                 </div>
@@ -866,7 +909,7 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
                   <span className="text-[11px] uppercase tracking-wider font-semibold text-[#767D8C] block">
                     Current Monthly Baseline
                   </span>
-                  <span className="text-xl font-bold font-mono text-[#111318] mt-1 block">
+                  <span className="text-xl font-bold font-sans tabular-nums text-[#111318] mt-1 block">
                     {formatINR(baselineInr)}
                   </span>
                   <span className="text-[10px] text-[#767D8C] mt-0.5 block">
@@ -878,7 +921,7 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
                   <span className="text-[11px] uppercase tracking-wider font-semibold text-[#767D8C] block">
                     Simulated Monthly Spend
                   </span>
-                  <span className="text-xl font-bold font-mono text-[#111318] mt-1 block">
+                  <span className="text-xl font-bold font-sans tabular-nums text-[#111318] mt-1 block">
                     {formatINR(projectedInr)}
                   </span>
                   <span className="text-[10px] text-[#1D5C46] font-medium mt-0.5 block">
@@ -890,7 +933,7 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
                   <span className="text-[11px] uppercase tracking-wider font-semibold opacity-85 block">
                     Net Projected Savings
                   </span>
-                  <span className="text-xl font-extrabold font-mono mt-1 block">
+                  <span className="text-xl font-extrabold font-sans tabular-nums mt-1 block">
                     -{formatINR(netSavingsInr)} /mo
                   </span>
                   <span className="text-[10px] font-semibold opacity-90 mt-0.5 block">
@@ -905,11 +948,11 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
                   <span className="text-xs font-bold text-[#111318] uppercase tracking-wider">
                     Policy-by-Policy Impact Breakdown
                   </span>
-                  <span className="text-[10px] font-mono text-[#767D8C]">
+                  <span className="text-[10px] font-sans text-[#767D8C]">
                     Calculated live at {lastSimulatedTime}
                   </span>
                 </div>
-                <div className="divide-y divide-black/[0.05] text-xs font-mono">
+                <div className="divide-y divide-black/[0.05] text-xs font-sans">
                   <div className="p-3.5 flex items-center justify-between bg-white">
                     <div>
                       <div className="font-bold text-[#111318]">Weeknight Dev Scheduling</div>
@@ -981,11 +1024,11 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
               </div>
 
               {/* Sustainability Impact Comparison */}
-              <div className="p-4 rounded-xl bg-white border border-black/[0.08] flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
+              <div className="p-4 rounded-xl bg-white border border-black/[0.08] flex flex-wrap items-center justify-between gap-3 text-xs font-sans">
                 <div>
                   <span className="font-bold text-[#111318] block">Environmental Impact (Scope 2 Reduction)</span>
                   <span className="text-[#525866]">
-                    Baseline energy waste: 0 kWh saved → Simulated: <strong>{kwhSaved.toLocaleString('en-IN')} kWh/mo saved</strong> (~{co2MetricTons} tons CO2e)
+                    Baseline energy waste: 0 kWh saved → Simulated: <strong className="tabular-nums">{kwhSaved.toLocaleString('en-IN')} kWh/mo saved</strong> (~{co2MetricTons} tons CO2e)
                   </span>
                 </div>
                 <span className="px-2.5 py-1 rounded status-green text-[10px] font-bold uppercase">
@@ -995,7 +1038,7 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
 
               {/* Governor Audit Note */}
               {simResult?.risk_summary && (
-                <div className="p-3.5 rounded-xl bg-black/[0.03] border border-black/[0.06] text-xs font-mono text-[#3F4450]">
+                <div className="p-3.5 rounded-xl bg-black/[0.03] border border-black/[0.06] text-xs font-sans text-[#3F4450]">
                   <strong>Mathematical Governor Audit:</strong> {simResult.risk_summary}
                 </div>
               )}
@@ -1003,7 +1046,7 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
 
             {/* Modal Footer */}
             <div className="flex items-center justify-between border-t border-black/[0.08] px-6 py-3.5 bg-white/80">
-              <span className="text-xs text-[#767D8C] font-mono">
+              <span className="text-xs text-[#767D8C] font-sans">
                 Click &ldquo;Simulate Scenario&rdquo; anytime to re-evaluate with current parameters.
               </span>
               <div className="flex items-center gap-2">

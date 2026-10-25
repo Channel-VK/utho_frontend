@@ -53,7 +53,7 @@ export const MondayRunbookStrip: React.FC<MondayRunbookStripProps> = ({
             </h3>
             <p className="text-[11px] text-zinc-400">
               3 prioritized execution buckets to safely unlock{' '}
-              <strong className="text-emerald-400 font-mono">
+              <strong className="text-emerald-400 font-sans font-bold tabular-nums">
                 {formatINR(orphanSavings + offHoursSavings + rightsizeSavings)}/mo
               </strong>{' '}
               with zero service disruption.
@@ -61,7 +61,7 @@ export const MondayRunbookStrip: React.FC<MondayRunbookStripProps> = ({
           </div>
         </div>
 
-        <span className="rounded bg-zinc-800 px-2 py-0.5 text-[10px] font-mono text-zinc-400 uppercase tracking-wider self-start sm:self-auto">
+        <span className="rounded bg-zinc-800 px-2 py-0.5 text-[10px] font-sans text-zinc-400 uppercase tracking-wider self-start sm:self-auto">
           3-Step Action Plan
         </span>
       </div>
@@ -72,7 +72,7 @@ export const MondayRunbookStrip: React.FC<MondayRunbookStripProps> = ({
         <div className="rounded-md border border-zinc-800 bg-zinc-950 p-3.5 flex flex-col justify-between space-y-3 hover:border-zinc-700 transition-colors">
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase font-mono font-bold tracking-wider text-rose-400 bg-rose-950/30 px-1.5 py-0.5 rounded border border-rose-500/20">
+              <span className="text-[10px] uppercase font-sans font-bold tracking-wider text-rose-400 bg-rose-950/30 px-1.5 py-0.5 rounded border border-rose-500/20">
                 Step 1 • Zero Risk • Instant
               </span>
               <Trash2 className="h-3.5 w-3.5 text-rose-400" />
@@ -86,7 +86,7 @@ export const MondayRunbookStrip: React.FC<MondayRunbookStripProps> = ({
               {orphanRecs.length} detached block volumes and unassociated Elastic IPs accruing idle tariffs.
             </p>
 
-            <div className="font-mono text-sm font-bold text-emerald-400 pt-1">
+            <div className="font-sans tabular-nums text-sm font-bold text-emerald-400 pt-1">
               +{formatINR(orphanSavings)}
               <span className="text-[10px] text-zinc-500 font-normal">/mo</span>
             </div>
@@ -114,7 +114,7 @@ export const MondayRunbookStrip: React.FC<MondayRunbookStripProps> = ({
         <div className="rounded-md border border-zinc-800 bg-zinc-950 p-3.5 flex flex-col justify-between space-y-3 hover:border-zinc-700 transition-colors">
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase font-mono font-bold tracking-wider text-indigo-400 bg-indigo-950/30 px-1.5 py-0.5 rounded border border-indigo-500/20">
+              <span className="text-[10px] uppercase font-sans font-bold tracking-wider text-indigo-400 bg-indigo-950/30 px-1.5 py-0.5 rounded border border-indigo-500/20">
                 Step 2 • Low Risk • Scheduled
               </span>
               <Clock className="h-3.5 w-3.5 text-indigo-400" />
@@ -128,7 +128,7 @@ export const MondayRunbookStrip: React.FC<MondayRunbookStripProps> = ({
               {offHoursRecs.length} non-prod workloads idle 118 hrs/week (Mon-Fri nights + full weekends).
             </p>
 
-            <div className="font-mono text-sm font-bold text-emerald-400 pt-1">
+            <div className="font-sans tabular-nums text-sm font-bold text-emerald-400 pt-1">
               +{formatINR(offHoursSavings)}
               <span className="text-[10px] text-zinc-500 font-normal">/mo</span>
             </div>
@@ -156,7 +156,7 @@ export const MondayRunbookStrip: React.FC<MondayRunbookStripProps> = ({
         <div className="rounded-md border border-zinc-800 bg-zinc-950 p-3.5 flex flex-col justify-between space-y-3 hover:border-zinc-700 transition-colors">
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase font-mono font-bold tracking-wider text-cyan-400 bg-cyan-950/30 px-1.5 py-0.5 rounded border border-cyan-500/20">
+              <span className="text-[10px] uppercase font-sans font-bold tracking-wider text-cyan-400 bg-cyan-950/30 px-1.5 py-0.5 rounded border border-cyan-500/20">
                 Step 3 • Verified p99 &lt; 85%
               </span>
               <ShieldCheck className="h-3.5 w-3.5 text-cyan-400" />
@@ -174,7 +174,7 @@ export const MondayRunbookStrip: React.FC<MondayRunbookStripProps> = ({
               for peak safety.
             </p>
 
-            <div className="font-mono text-sm font-bold text-emerald-400 pt-1">
+            <div className="font-sans tabular-nums text-sm font-bold text-emerald-400 pt-1">
               +{formatINR(rightsizeSavings)}
               <span className="text-[10px] text-zinc-500 font-normal">/mo</span>
             </div>

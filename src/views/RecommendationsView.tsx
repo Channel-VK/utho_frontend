@@ -181,7 +181,7 @@ export const RecommendationsView: React.FC<RecommendationsViewProps> = ({
     ];
   }, [assumptions]);
 
-  const baselineMonthlyInr = dashboardData?.current_monthly_spend_inr || summary.current_monthly_inr || 1284500;
+  const baselineMonthlyInr = dashboardData?.current_monthly_spend_inr || summary.current_monthly_inr || 683200;
   const totalPotentialSavingsInr =
     dashboardData?.total_potential_savings_inr ||
     recommendations.reduce((acc, r) => acc + r.monthly_savings_inr, 0);

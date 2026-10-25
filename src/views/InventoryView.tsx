@@ -95,8 +95,8 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
       const ram = r.ram_gb ?? 16;
       return (
         <div>
-          <div className="font-semibold text-[#111318] font-mono text-xs">{planName}</div>
-          <div className="text-[11px] text-[#68707E] mt-0.5">
+          <div className="font-semibold text-[#111318] font-sans text-xs">{planName}</div>
+          <div className="text-[11px] text-[#68707E] mt-0.5 font-sans tabular-nums">
             {vcpu} vCPU · {ram} GB RAM
           </div>
         </div>
@@ -108,7 +108,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
       return (
         <div>
           <div className="font-semibold text-[#111318] text-xs">Block SSD</div>
-          <div className="text-[11px] text-[#68707E] mt-0.5 font-mono">{size} GB NVMe</div>
+          <div className="text-[11px] text-[#68707E] mt-0.5 font-sans tabular-nums">{size} GB NVMe</div>
         </div>
       );
     }
@@ -133,7 +133,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             <span className="inline-flex rounded-md status-yellow px-2.5 py-0.5 text-[11px] font-semibold">
               Peak Protected (Keep Size)
             </span>
-            <div className="text-[10px] text-[#7C4F14] font-mono">
+            <div className="text-[10px] text-[#7C4F14] font-sans tabular-nums">
               {cpuAvg}% avg, {cpuP99}% daily peak
             </div>
           </div>
@@ -213,7 +213,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
 
     return (
       <div className="w-36 space-y-1">
-        <div className="flex justify-between items-baseline text-xs font-mono">
+        <div className="flex justify-between items-baseline text-xs font-sans tabular-nums">
           <span className="text-[#525866] text-[11px]">Avg {avg}%</span>
           <span className="font-bold text-[#111318]">Peak {peak}%</span>
         </div>
@@ -239,8 +239,8 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             Complete 85-resource Utho Cloud telemetry inventory across Mumbai, Bangalore, and Noida.
           </p>
         </div>
-        <div className="font-mono text-xs text-[#525866]">
-          Showing <strong className="text-[#111318]">{filtered.length}</strong> of {resources.length} resources
+        <div className="font-sans text-xs text-[#525866]">
+          Showing <strong className="text-[#111318] tabular-nums">{filtered.length}</strong> of <span className="tabular-nums">{resources.length}</span> resources
         </div>
       </div>
 
@@ -278,7 +278,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             className="w-48 rounded-lg bg-white/80 border border-black/[0.08] px-3 py-1.5 text-xs text-[#111318] placeholder:text-[#68707E] focus:outline-hidden"
           />
 
-          <div className="flex items-center rounded-lg glass-well p-0.5 text-[11px] font-mono">
+          <div className="flex items-center rounded-lg glass-well p-0.5 text-[11px] font-sans">
             {['ALL', 'prod', 'staging', 'dev'].map((e) => (
               <button
                 key={e}
@@ -295,7 +295,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             ))}
           </div>
 
-          <div className="flex items-center rounded-lg glass-well p-0.5 text-[11px] font-mono">
+          <div className="flex items-center rounded-lg glass-well p-0.5 text-[11px] font-sans">
             {['ALL', 'Mumbai', 'Bangalore', 'Noida'].map((r) => (
               <button
                 key={r}
@@ -343,7 +343,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                   className="cursor-pointer hover:bg-black/[0.025] transition-colors"
                 >
                   <td className="px-4 py-3.5">
-                    <div className="font-semibold text-[#111318] text-xs font-mono">
+                    <div className="font-semibold text-[#111318] text-xs font-sans">
                       {item.name}
                     </div>
                     <div className="text-[11px] text-[#68707E] font-mono mt-0.5">
@@ -353,10 +353,10 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
 
                   <td className="px-4 py-3.5 whitespace-nowrap">
                     <div className="flex items-center gap-1.5">
-                      <span className="rounded-md px-2 py-0.5 text-[10px] uppercase font-mono font-bold glass-pill-neutral">
+                      <span className="rounded-md px-2 py-0.5 text-[10px] uppercase font-sans font-bold glass-pill-neutral">
                         {item.env}
                       </span>
-                      <span className="text-[11px] text-[#525866] font-mono">
+                      <span className="text-[11px] text-[#525866] font-sans">
                         {item.region}
                       </span>
                     </div>
@@ -364,7 +364,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
 
                   <td className="px-4 py-3.5 whitespace-nowrap">{renderCurrentSpec(item)}</td>
 
-                  <td className="px-4 py-3.5 text-right font-mono font-bold text-[#111318] text-xs whitespace-nowrap">
+                  <td className="px-4 py-3.5 text-right font-sans font-bold tabular-nums text-[#111318] text-xs whitespace-nowrap">
                     {formatINR(item.monthly_cost_inr)}
                   </td>
 
@@ -375,7 +375,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                         item.metrics_summary.cpu_p99
                       )
                     ) : (
-                      <span className="text-[11px] text-[#68707E] font-mono">0% (Storage/IP)</span>
+                      <span className="text-[11px] text-[#68707E] font-sans tabular-nums">0% (Storage/IP)</span>
                     )}
                   </td>
 
@@ -386,7 +386,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                         item.metrics_summary.mem_p99
                       )
                     ) : (
-                      <span className="text-[11px] text-[#68707E] font-mono">Unmounted</span>
+                      <span className="text-[11px] text-[#68707E] font-sans">Unmounted</span>
                     )}
                   </td>
 

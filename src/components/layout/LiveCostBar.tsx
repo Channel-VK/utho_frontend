@@ -29,7 +29,7 @@ export const LiveCostBar: React.FC<LiveCostBarProps> = ({
         <div className="flex items-center space-x-3 text-xs overflow-x-auto scrollbar-none py-1">
           <div className="flex items-center space-x-1.5 shrink-0">
             <span className="text-zinc-400 font-medium">Current Bill:</span>
-            <span className="font-mono text-zinc-200 font-semibold text-sm">
+            <span className="font-sans tabular-nums text-zinc-200 font-semibold text-sm">
               {formatINR(currentMonthlyInr)}
               <span className="text-[11px] font-normal text-zinc-500">/mo</span>
             </span>
@@ -39,7 +39,7 @@ export const LiveCostBar: React.FC<LiveCostBarProps> = ({
 
           <div className="flex items-center space-x-1.5 shrink-0">
             <span className="text-zinc-400 font-medium">After Plan:</span>
-            <span className="font-mono text-emerald-400 font-bold text-sm">
+            <span className="font-sans tabular-nums text-emerald-400 font-bold text-sm">
               {formatINR(projectedMonthlyInr)}
               <span className="text-[11px] font-normal text-emerald-500/70">/mo</span>
             </span>
@@ -49,8 +49,8 @@ export const LiveCostBar: React.FC<LiveCostBarProps> = ({
           <div className="flex items-center space-x-1.5 rounded-full border border-emerald-500/30 bg-emerald-950/40 px-2.5 py-0.5 text-xs text-emerald-400 shrink-0 font-medium">
             <Zap className="h-3 w-3 text-emerald-400 fill-emerald-400" />
             <span>
-              Saving <strong className="font-mono font-bold">{formatINR(acceptedSavingsInr)}/mo</strong>{' '}
-              <span className="text-emerald-300 font-mono text-[11px]">(-{acceptedSavingsPct}%)</span>
+              Saving <strong className="font-sans font-bold tabular-nums">{formatINR(acceptedSavingsInr)}/mo</strong>{' '}
+              <span className="text-emerald-300 font-sans tabular-nums text-[11px]">(-{acceptedSavingsPct}%)</span>
             </span>
           </div>
         </div>

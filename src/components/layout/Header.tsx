@@ -14,10 +14,10 @@ interface HeaderProps {
   onTabChange: (tab: ActiveTab) => void;
   onQuickCategorySelect?: (category: 'ALL' | 'FLAGGED' | 'COMPUTE' | 'STORAGE' | 'PROTECTED') => void;
   activeResourceCategory?: string;
-  isConnected: boolean;
+  isConnected?: boolean;
   isAIConnected?: boolean;
-  isChecking: boolean;
-  onCheckConnection: () => void;
+  isChecking?: boolean;
+  onCheckConnection?: () => void;
   activeAlertsCount: number;
   pendingRecsCount: number;
   pendingLowRiskCount?: number;
@@ -38,10 +38,6 @@ export const Header: React.FC<HeaderProps> = ({
   onTabChange,
   onQuickCategorySelect,
   activeResourceCategory = 'ALL',
-  isConnected,
-  isAIConnected = false,
-  isChecking,
-  onCheckConnection,
   activeAlertsCount,
   pendingRecsCount,
   pendingLowRiskCount = 0,
@@ -49,9 +45,9 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenExportModal,
   onExportReport,
   currentSpendInr = 683200,
-  acceptedSavingsInr = 150310,
-  projectedSpendInr = 532890,
-  acceptedSavingsPct = 22.0,
+  acceptedSavingsInr = 0,
+  projectedSpendInr = 683200,
+  acceptedSavingsPct = 0.0,
   totalPotentialSavingsInr = 277230,
   onToggleChatbotPopup,
   isChatbotPopupOpen = false,
@@ -97,9 +93,6 @@ export const Header: React.FC<HeaderProps> = ({
                 FinSort
               </span>
             </div>
-            <span className="text-[10px] font-mono text-[#767D8C] tracking-wide">
-              v1.0
-            </span>
           </div>
 
           {/* Workspace Switcher */}
@@ -115,26 +108,26 @@ export const Header: React.FC<HeaderProps> = ({
                 <span className="text-xs font-semibold text-[#111318]">
                   Engineering &amp; Finance
                 </span>
-                <span className="text-[10px] text-[#4A505C] font-mono font-semibold bg-white/80 px-1.5 py-0.5 rounded border border-black/[0.07]">
+                <span className="text-[10px] text-[#4A505C] font-sans font-semibold bg-white/80 px-1.5 py-0.5 rounded border border-black/[0.07]">
                   INR (₹)
                 </span>
               </div>
 
               {/* Dynamic Live Cost Cutting Mini-Ticker in Sidebar */}
               <div className="mt-2.5 pt-2.5 border-t border-black/[0.06] space-y-1">
-                <div className="flex items-center justify-between text-[10px] font-mono">
+                <div className="flex items-center justify-between text-[10px] font-sans">
                   <span className="text-[#767D8C]">Current:</span>
-                  <span className="font-semibold text-[#111318]">{formatINR(currentSpendInr)}</span>
+                  <span className="font-semibold text-[#111318] tabular-nums">{formatINR(currentSpendInr)}</span>
                 </div>
-                <div className="flex items-center justify-between text-[10px] font-mono">
+                <div className="flex items-center justify-between text-[10px] font-sans">
                   <span className="text-[#236B52] font-semibold">Cost Cut:</span>
-                  <span className="font-semibold text-[#236B52] status-green px-1.5 py-0.2 rounded">
+                  <span className="font-semibold text-[#236B52] status-green px-1.5 py-0.2 rounded tabular-nums">
                     -{formatINR(acceptedSavingsInr)} ({acceptedSavingsPct}%)
                   </span>
                 </div>
-                <div className="flex items-center justify-between text-[10px] font-mono">
+                <div className="flex items-center justify-between text-[10px] font-sans">
                   <span className="text-[#767D8C]">Run-Rate:</span>
-                  <span className="font-semibold text-[#111318]">{formatINR(projectedSpendInr)}</span>
+                  <span className="font-semibold text-[#111318] tabular-nums">{formatINR(projectedSpendInr)}</span>
                 </div>
               </div>
             </div>
@@ -163,7 +156,7 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <span>Fleet Spend</span>
               <span
-                className={`text-[10px] font-mono px-2 py-0.5 rounded-md font-semibold ${
+                className={`text-[10px] font-sans px-2 py-0.5 rounded-md font-semibold ${
                   isSpendingAll
                     ? 'bg-white/15 text-white'
                     : 'status-green'
@@ -184,7 +177,7 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <span>Simulator &amp; Alerts</span>
               <span
-                className={`text-[10px] font-mono px-2 py-0.5 rounded-md font-semibold ${
+                className={`text-[10px] font-sans px-2 py-0.5 rounded-md font-semibold ${
                   activeTab === 'simulator'
                     ? 'bg-white/15 text-white'
                     : activeAlertsCount > 0
@@ -207,7 +200,7 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <span>Actionable Recommendations</span>
               <span
-                className={`text-[10px] font-mono px-2 py-0.5 rounded-md font-semibold ${
+                className={`text-[10px] font-sans px-2 py-0.5 rounded-md font-semibold ${
                   activeTab === 'recommendations'
                     ? 'bg-white/15 text-white'
                     : pendingRecsCount > 0
@@ -216,29 +209,6 @@ export const Header: React.FC<HeaderProps> = ({
                 }`}
               >
                 {pendingRecsCount} Pending
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => onTabChange('copilot')}
-              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs transition-all ${
-                activeTab === 'copilot'
-                  ? 'font-semibold text-white bg-[#111318] shadow-xs'
-                  : 'font-medium text-[#4A505C] hover:text-[#111318] hover:bg-black/[0.04]'
-              }`}
-            >
-              <span>FinOps Copilot</span>
-              <span
-                className={`text-[10px] font-mono px-2 py-0.5 rounded-md font-semibold ${
-                  activeTab === 'copilot'
-                    ? 'bg-white/15 text-white'
-                    : isAIConnected
-                    ? 'status-green'
-                    : 'glass-pill-neutral'
-                }`}
-              >
-                {isAIConnected ? 'Online' : 'Standby'}
               </span>
             </button>
 
@@ -262,7 +232,7 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <span>Compute Instances</span>
               <span
-                className={`text-[10px] font-mono px-2 py-0.5 rounded-md font-medium ${
+                className={`text-[10px] font-sans px-2 py-0.5 rounded-md font-medium ${
                   isComputeActive ? 'bg-white/15 text-white' : 'glass-pill-neutral'
                 }`}
               >
@@ -284,7 +254,7 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <span>Storage &amp; Volumes</span>
               <span
-                className={`text-[10px] font-mono px-2 py-0.5 rounded-md font-medium ${
+                className={`text-[10px] font-sans px-2 py-0.5 rounded-md font-medium ${
                   isStorageActive ? 'bg-white/15 text-white' : 'glass-pill-neutral'
                 }`}
               >
@@ -303,7 +273,7 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <span>Full Fleet Matrix</span>
               <span
-                className={`text-[10px] font-mono px-2 py-0.5 rounded-md font-medium ${
+                className={`text-[10px] font-sans px-2 py-0.5 rounded-md font-medium ${
                   activeTab === 'inventory' ? 'bg-white/15 text-white' : 'glass-pill-neutral'
                 }`}
               >
@@ -322,7 +292,7 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <span>Governance &amp; Math</span>
               <span
-                className={`text-[10px] font-mono px-2 py-0.5 rounded-md font-medium ${
+                className={`text-[10px] font-sans px-2 py-0.5 rounded-md font-medium ${
                   activeTab === 'assumptions' ? 'bg-white/15 text-white' : 'glass-pill-neutral'
                 }`}
               >
@@ -330,48 +300,6 @@ export const Header: React.FC<HeaderProps> = ({
               </span>
             </button>
           </nav>
-        </div>
-
-        {/* Service Telemetry & User Profile Footer */}
-        <div className="p-4 border-t border-black/[0.06] bg-white/40 space-y-2.5">
-          {/* Blended Status Pills for Live Backend Services */}
-          <div className="grid grid-cols-2 gap-1.5">
-            <button
-              type="button"
-              onClick={onCheckConnection}
-              disabled={isChecking}
-              className={`py-1.5 px-2 rounded-lg text-[10px] font-mono font-semibold uppercase tracking-wider text-center transition-all ${
-                isConnected ? 'status-green' : 'status-yellow'
-              }`}
-            >
-              {isConnected ? 'Go :8080 Live' : 'Go :8080 Sync'}
-            </button>
-            <button
-              type="button"
-              onClick={onCheckConnection}
-              disabled={isChecking}
-              className={`py-1.5 px-2 rounded-lg text-[10px] font-mono font-semibold uppercase tracking-wider text-center transition-all ${
-                isAIConnected ? 'status-green' : 'status-yellow'
-              }`}
-            >
-              {isAIConnected ? 'ML :8001 Live' : 'ML :8001 Sync'}
-            </button>
-          </div>
-
-          <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/75 border border-black/[0.06]">
-            <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-full bg-[#111318] text-white flex items-center justify-center text-[11px] font-semibold font-mono">
-                AR
-              </div>
-              <div className="flex flex-col">
-                <span className="text-xs font-semibold text-[#111318]">Alex Rivera</span>
-                <span className="text-[10px] text-[#767D8C] font-mono">Lead SRE / FinOps</span>
-              </div>
-            </div>
-            <span className="text-[10px] font-mono font-semibold status-green px-2 py-0.5 rounded-md">
-              Online
-            </span>
-          </div>
         </div>
       </aside>
 
@@ -385,7 +313,7 @@ export const Header: React.FC<HeaderProps> = ({
           >
             {screenTitle}
           </h1>
-          <span className="hidden 2xl:inline-flex px-2 py-0.5 rounded-md glass-pill-neutral text-[10px] font-mono font-medium shrink-0">
+          <span className="hidden 2xl:inline-flex px-2 py-0.5 rounded-md glass-pill-neutral text-[10px] font-sans font-medium shrink-0">
             Noida · BLR · BOM
           </span>
         </div>
@@ -393,27 +321,27 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Center: DYNAMIC TOTAL MONEY & COST CUTTING CLUSTER */}
         <div className="flex items-center justify-center gap-1.5 sm:gap-2 shrink-0">
           {/* Spend */}
-          <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-well border border-black/[0.06] text-xs font-mono shrink-0">
+          <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-well border border-black/[0.06] text-xs font-sans shrink-0">
             <span className="text-[10px] text-[#767D8C] uppercase tracking-wider font-medium">Spend:</span>
-            <span className="font-semibold text-[#111318]">{formatINR(currentSpendInr)}</span>
+            <span className="font-semibold text-[#111318] tabular-nums">{formatINR(currentSpendInr)}</span>
           </div>
 
           {/* Dynamic Cost Cutting Pill (Clean Minimal Indicator) */}
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg status-green text-xs font-mono font-semibold shrink-0 shadow-xs">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg status-green text-xs font-sans font-semibold shrink-0 shadow-xs tabular-nums">
             <span className="text-[10px] uppercase tracking-wider opacity-90">Cost Cut:</span>
             <span>↓ {formatINR(acceptedSavingsInr)}</span>
             <span className="opacity-80">(-{acceptedSavingsPct}%)</span>
           </div>
 
           {/* Projected Run-Rate */}
-          <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-well border border-black/[0.06] text-xs font-mono shrink-0">
+          <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-well border border-black/[0.06] text-xs font-sans shrink-0">
             <span className="text-[10px] text-[#767D8C] uppercase tracking-wider font-medium">Projected:</span>
-            <span className="font-semibold text-[#111318]">{formatINR(projectedSpendInr)}</span>
+            <span className="font-semibold text-[#111318] tabular-nums">{formatINR(projectedSpendInr)}</span>
           </div>
 
           {/* Unclaimed Pipeline */}
           {totalPotentialSavingsInr > acceptedSavingsInr && (
-            <div className="hidden 2xl:flex items-center gap-1 px-2 py-1 rounded-lg status-yellow text-[11px] font-mono font-medium shrink-0">
+            <div className="hidden 2xl:flex items-center gap-1 px-2 py-1 rounded-lg status-yellow text-[11px] font-sans font-medium shrink-0 tabular-nums">
               <span>₹{Math.round((totalPotentialSavingsInr - acceptedSavingsInr) / 1000)}k Unclaimed</span>
             </div>
           )}
@@ -426,7 +354,7 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               type="button"
               onClick={onToggleChatbotPopup}
-              className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold font-mono flex items-center gap-1.5 transition-all cursor-pointer ${
+              className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold font-sans flex items-center gap-1.5 transition-all cursor-pointer ${
                 isChatbotPopupOpen
                   ? 'bg-[#111318] text-white shadow-xs'
                   : 'glass-well hover:bg-black/[0.08] text-[#111318] border border-black/[0.08]'

@@ -106,7 +106,7 @@ class LocalFinOpsEngine {
     };
   }
 
-  public patchRecommendation(id: string, status: 'accepted' | 'rejected'): RecommendationsResponse {
+  public patchRecommendation(id: string, status: 'accepted' | 'rejected' | 'pending'): RecommendationsResponse {
     const item = this.recommendations.find((r) => r.id === id);
     if (item) {
       item.status = status;
@@ -114,7 +114,7 @@ class LocalFinOpsEngine {
     return this.getRecommendations();
   }
 
-  public bulkRecommendations(status: 'accepted' | 'rejected', filter_risk: 'ALL' | 'LOW_ONLY'): RecommendationsResponse {
+  public bulkRecommendations(status: 'accepted' | 'rejected' | 'pending', filter_risk: 'ALL' | 'LOW_ONLY'): RecommendationsResponse {
     for (const item of this.recommendations) {
       if (filter_risk === 'LOW_ONLY') {
         if (item.risk_level === 'LOW') {
@@ -1110,7 +1110,7 @@ export const apiClient = {
     }
   },
 
-  async patchRecommendation(id: string, status: 'accepted' | 'rejected'): Promise<RecommendationsResponse> {
+  async patchRecommendation(id: string, status: 'accepted' | 'rejected' | 'pending'): Promise<RecommendationsResponse> {
     try {
       const res = await fetch(`${BASE_URL}/recommendations/${id}`, {
         method: 'PATCH',
@@ -1128,7 +1128,7 @@ export const apiClient = {
     }
   },
 
-  async bulkRecommendations(status: 'accepted' | 'rejected', filter_risk: 'ALL' | 'LOW_ONLY'): Promise<RecommendationsResponse> {
+  async bulkRecommendations(status: 'accepted' | 'rejected' | 'pending', filter_risk: 'ALL' | 'LOW_ONLY'): Promise<RecommendationsResponse> {
     try {
       const res = await fetch(`${BASE_URL}/recommendations/bulk`, {
         method: 'POST',

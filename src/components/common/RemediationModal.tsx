@@ -144,7 +144,7 @@ export const RemediationModal: React.FC<RemediationModalProps> = ({
         {/* Content Box */}
         <div className="flex-1 overflow-auto p-6">
           {isLoading ? (
-            <div className="flex h-64 items-center justify-center text-xs font-mono text-[#525866]">
+            <div className="flex h-64 items-center justify-center text-xs font-sans text-[#525866]">
               Generating reproducible remediation artifacts...
             </div>
           ) : (
@@ -156,8 +156,8 @@ export const RemediationModal: React.FC<RemediationModalProps> = ({
 
         {/* Footer */}
         <div className="flex items-center justify-between border-t border-black/[0.06] bg-white/75 px-6 py-3 text-xs text-[#525866]">
-          <span className="font-mono">
-            Directly executable via <code className="text-[#111318] font-semibold">utho-cli v2.4+</code> or Terraform Utho Provider.
+          <span className="font-sans">
+            Directly executable via <code className="text-[#111318] font-mono font-semibold">utho-cli v2.4+</code> or Terraform Utho Provider.
           </span>
           <button
             type="button"

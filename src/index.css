@@ -1,18 +1,18 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  --font-display-lg: "Geist", sans-serif;
-  --font-headline-xl: "Geist", sans-serif;
-  --font-headline-lg: "Geist", sans-serif;
-  --font-headline-md: "Geist", sans-serif;
-  --font-body-lg: "Geist", sans-serif;
-  --font-body-md: "Geist", sans-serif;
-  --font-body-sm: "Geist", sans-serif;
-  --font-label-caps: "Geist", sans-serif;
-  --font-tabular-numeric-lg: "Geist", sans-serif;
-  --font-tabular-numeric-md: "Geist", sans-serif;
+  --font-display-lg: "Plus Jakarta Sans", "Inter", sans-serif;
+  --font-headline-xl: "Plus Jakarta Sans", "Inter", sans-serif;
+  --font-headline-lg: "Plus Jakarta Sans", "Inter", sans-serif;
+  --font-headline-md: "Plus Jakarta Sans", "Inter", sans-serif;
+  --font-body-lg: "Inter", sans-serif;
+  --font-body-md: "Inter", sans-serif;
+  --font-body-sm: "Inter", sans-serif;
+  --font-label-caps: "Inter", sans-serif;
+  --font-tabular-numeric-lg: "Inter", sans-serif;
+  --font-tabular-numeric-md: "Inter", sans-serif;
   --font-code-sm: "JetBrains Mono", monospace;
 
   /* Minimalist Architectural Glass Palette (Monochrome + Blended Status Only) */

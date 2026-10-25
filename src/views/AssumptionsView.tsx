@@ -42,7 +42,7 @@ export const AssumptionsView: React.FC<AssumptionsViewProps> = ({ assumptions })
           <h2 className="text-sm font-bold uppercase tracking-wider text-[#111318]">
             Utho Cloud Pricing Catalog (INR Tiers)
           </h2>
-          <span className="text-xs font-mono text-[#68707E]">
+          <span className="text-xs font-sans text-[#68707E]">
             Source: Utho Cloud Live Tariff Engine
           </span>
         </div>
@@ -65,22 +65,22 @@ export const AssumptionsView: React.FC<AssumptionsViewProps> = ({ assumptions })
                   <th className="px-4 py-3">Target Workload Profile</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-black/[0.05] font-mono">
+              <tbody className="divide-y divide-black/[0.05] font-sans">
                 {catalogList.map((plan) => (
                   <tr key={plan.plan} className="hover:bg-black/[0.025] transition-colors">
                     <td className="px-4 py-2.5 font-bold text-[#111318]">
                       {plan.plan}
                     </td>
-                    <td className="px-3 py-2.5 text-[#525866]">
+                    <td className="px-3 py-2.5 text-[#525866] tabular-nums">
                       {plan.vcpu > 0 ? `${plan.vcpu} vCPU` : '0 vCPU'}
                     </td>
-                    <td className="px-3 py-2.5 text-[#525866]">
+                    <td className="px-3 py-2.5 text-[#525866] tabular-nums">
                       {plan.ram_gb > 0 ? `${plan.ram_gb} GB` : '0 GB'}
                     </td>
-                    <td className="px-3 py-2.5 text-right text-[#111318]">
+                    <td className="px-3 py-2.5 text-right font-medium text-[#111318] tabular-nums">
                       ₹{plan.hourly_inr.toFixed(2)}
                     </td>
-                    <td className="px-3 py-2.5 text-right font-bold text-[#1D5C46]">
+                    <td className="px-3 py-2.5 text-right font-bold text-[#1D5C46] tabular-nums">
                       {formatINR(plan.monthly_inr)}
                     </td>
                     <td className="px-4 py-2.5 font-sans text-xs text-[#525866]">

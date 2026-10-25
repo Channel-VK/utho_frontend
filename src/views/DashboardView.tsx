@@ -248,11 +248,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 style={{ width: `${Math.min(100, Math.max(4, cpuPeak))}%` }}
               />
             </div>
-            <span className="text-[#111318] text-[12px] font-semibold font-mono whitespace-nowrap">
+            <span className="text-[#111318] text-[12px] font-semibold font-sans tabular-nums whitespace-nowrap">
               CPU {cpuAvg}% / {cpuPeak}%
             </span>
           </div>
-          <div className="text-[11px] font-mono text-[#767D8C]">
+          <div className="text-[11px] font-sans text-[#767D8C] tabular-nums">
             RAM Avg {ramAvg}% · Peak {ramPeak}%
           </div>
         </div>
@@ -270,14 +270,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             />
           </div>
           <span
-            className={`text-[12px] font-semibold font-mono ${
+            className={`text-[12px] font-semibold font-sans ${
               isOrphan ? 'text-[#8F2925]' : 'text-[#111318]'
             }`}
           >
             {isOrphan ? '0% (Idle)' : 'Active I/O'}
           </span>
         </div>
-        <div className="text-[11px] font-mono text-[#767D8C]">
+        <div className="text-[11px] font-sans text-[#767D8C]">
           {r.attached_to ? `Attached: ${r.attached_to}` : 'Unmounted >30d'}
         </div>
       </div>
@@ -297,7 +297,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="text-[#111318] font-medium text-xs truncate max-w-[230px]">
             {target} {pct > 0 ? `(-${pct}%)` : ''}
           </div>
-          <div className="text-[11px] text-[#1D5C46] font-mono font-medium truncate max-w-[230px]">
+          <div className="text-[11px] text-[#1D5C46] font-sans font-medium tabular-nums truncate max-w-[230px]">
             Save {formatINR(rec.monthly_savings_inr)}/mo · {rec.status.toUpperCase()}
           </div>
         </div>
@@ -311,7 +311,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="text-[#7C4F14] font-semibold text-xs">
             Peak Protected (Keep Plan)
           </div>
-          <div className="text-[11px] text-[#767D8C] font-mono">
+          <div className="text-[11px] text-[#767D8C] font-sans tabular-nums">
             Daily p99={p99}% exceeds 85% ceiling
           </div>
         </div>
@@ -323,7 +323,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <div className="text-[#4A505C] font-medium text-xs">
           Right-Sized Within SLA
         </div>
-        <div className="text-[11px] text-[#767D8C] font-mono">
+        <div className="text-[11px] text-[#767D8C] font-sans">
           Balanced diurnal utilization
         </div>
       </div>
@@ -627,7 +627,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     setRegionFilter(reg);
                     setPage(1);
                   }}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-mono font-medium transition-all ${
+                  className={`px-2.5 py-1 rounded-lg text-xs font-sans font-medium transition-all ${
                     regionFilter === reg
                       ? 'bg-white text-[#111318] font-semibold shadow-2xs border border-black/[0.06]'
                       : 'text-[#4A505C] hover:text-[#111318]'
@@ -810,7 +810,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   }`}
                 >
                   Flagged{' '}
-                  <span className="px-1.5 py-0.5 rounded status-yellow text-[10px] font-mono font-semibold ml-1">
+                  <span className="px-1.5 py-0.5 rounded status-yellow text-[10px] font-sans font-semibold tabular-nums ml-1">
                     {countFlagged}
                   </span>
                 </button>
@@ -824,7 +824,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   }`}
                 >
                   Peak Protected{' '}
-                  <span className="px-1.5 py-0.5 rounded glass-pill-neutral text-[10px] font-mono font-semibold ml-1">
+                  <span className="px-1.5 py-0.5 rounded glass-pill-neutral text-[10px] font-sans font-semibold tabular-nums ml-1">
                     {countProtected}
                   </span>
                 </button>
@@ -854,7 +854,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
               {/* Environment Filter + Record Count */}
               <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1 p-0.5 glass-well rounded-xl text-[11px] font-mono">
+                <div className="flex items-center gap-1 p-0.5 glass-well rounded-xl text-[11px] font-sans">
                   {(['ALL', 'prod', 'staging', 'dev'] as const).map((env) => (
                     <button
                       key={env}
@@ -1015,7 +1015,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       Resource Inspection
                     </span>
                     <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold uppercase ${
+                      className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-sans font-semibold uppercase ${
                         activeResource.optimization_status === 'PROTECTED_PEAK_LOAD'
                           ? 'status-yellow'
                           : activeResource.optimization_status === 'ORPHANED'
@@ -1105,7 +1105,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     <span className="font-label-caps text-label-caps text-[#767D8C] uppercase">
                       30-Day Telemetry
                     </span>
-                    <div className="inline-flex rounded-lg glass-well p-0.5 text-[10px] font-mono">
+                    <div className="inline-flex rounded-lg glass-well p-0.5 text-[10px] font-sans">
                       <button
                         type="button"
                         onClick={() => setDrawerMetric('cpu')}
@@ -1236,7 +1236,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <span className="text-[#111318] font-headline-md text-[13px] font-semibold">
                     Fleet Telemetry &amp; SRE Assessment
                   </span>
-                  <span className="px-2 py-0.5 rounded-md glass-pill-neutral text-[10px] font-mono font-medium">
+                  <span className="px-2 py-0.5 rounded-md glass-pill-neutral text-[10px] font-sans font-medium">
                     {activeEng.provider || 'FinSort Engine'}
                   </span>
                 </div>
@@ -1251,7 +1251,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <div className="flex flex-wrap gap-1.5 pt-1">
                   {activeEng.jev_assessment && (
                     <span
-                      className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold ${
+                      className={`px-2 py-0.5 rounded-md text-[10px] font-sans font-semibold tabular-nums ${
                         activeEng.jev_assessment.risk_score_percentage > 60
                           ? 'status-red'
                           : activeEng.jev_assessment.risk_score_percentage > 30
@@ -1263,12 +1263,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     </span>
                   )}
                   {activeEng.workload_classification && (
-                    <span className="px-2 py-0.5 rounded-md glass-pill-neutral text-[10px] font-mono font-medium">
+                    <span className="px-2 py-0.5 rounded-md glass-pill-neutral text-[10px] font-sans font-medium">
                       {activeEng.workload_classification}
                     </span>
                   )}
                   {activeEng.greenops_impact && (
-                    <span className="px-2 py-0.5 rounded-md status-green text-[10px] font-mono font-semibold">
+                    <span className="px-2 py-0.5 rounded-md status-green text-[10px] font-sans font-semibold tabular-nums">
                       -{activeEng.greenops_impact.estimated_carbon_saved_kg_co2e} kg CO2e
                     </span>
                   )}
@@ -1364,10 +1364,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   {(briefing.key_metrics || []).map((pill, i) => (
                     <div
                       key={i}
-                      className="px-3 py-1 rounded-lg glass-well text-[#111318] text-xs font-mono"
+                      className="px-3 py-1 rounded-lg glass-well text-[#111318] text-xs font-sans"
                     >
                       <span className="text-[#767D8C] mr-1.5">{pill.label}:</span>
-                      <span className="font-semibold text-[#111318]">{pill.value}</span>
+                      <span className="font-semibold text-[#111318] tabular-nums">{pill.value}</span>
                     </div>
                   ))}
                 </div>
@@ -1382,12 +1382,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <span className="font-headline-md text-headline-md text-[#111318] font-semibold block">
                   Multi-Horizon Cost Forecaster
                 </span>
-                <span className="font-code-sm text-code-sm text-[#767D8C]">
+                <span className="font-body-sm text-xs text-[#767D8C]">
                   Component projection across VM, SSD &amp; IPv4
                 </span>
               </div>
 
-              <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl glass-well font-mono text-xs">
+              <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl glass-well font-sans text-xs">
                 {([30, 35, 40, 60, 90] as const).map((d) => (
                   <button
                     key={d}
@@ -1421,7 +1421,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       }
                     }}
                     placeholder="Days"
-                    className="w-14 px-1.5 py-0.5 rounded-md bg-white border border-black/[0.12] text-center text-xs font-mono text-[#111318] focus:outline-none focus:ring-1 focus:ring-black"
+                    className="w-14 px-1.5 py-0.5 rounded-md bg-white border border-black/[0.12] text-center text-xs font-sans tabular-nums text-[#111318] focus:outline-none focus:ring-1 focus:ring-black"
                     title="Enter custom days (e.g. 35, 40, 45, etc.) and click Set"
                   />
                   <button
@@ -1469,12 +1469,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   </div>
                 </div>
 
-                <div className="p-3 rounded-xl glass-well flex flex-wrap items-center justify-between gap-2 text-xs font-mono text-[#4A505C]">
+                <div className="p-3 rounded-xl glass-well flex flex-wrap items-center justify-between gap-2 text-xs font-sans text-[#4A505C]">
                   <span>
-                    Power Saved: <strong className="text-[#111318]">{formatNumber(Math.round(data.sustainability.monthly_kwh_saved))} kWh/mo</strong>
+                    Power Saved: <strong className="text-[#111318] tabular-nums">{formatNumber(Math.round(data.sustainability.monthly_kwh_saved))} kWh/mo</strong>
                   </span>
                   <span>
-                    CO2e Abated: <strong className="text-[#111318]">{formatNumber(Math.round(data.sustainability.monthly_co2_kg_saved))} kg/mo</strong>
+                    CO2e Abated: <strong className="text-[#111318] tabular-nums">{formatNumber(Math.round(data.sustainability.monthly_co2_kg_saved))} kg/mo</strong>
                   </span>
                   <span className="px-2 py-0.5 rounded-md status-green text-[10px] font-semibold">
                     GreenScore {aiForecast.sustainability.sustainability_score}
@@ -1499,7 +1499,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 Unmanaged infrastructure spend growth prior to FinSort rightsizing
               </p>
             </div>
-            <span className="px-2.5 py-1 rounded-md status-red text-[11px] font-mono font-semibold">
+            <span className="px-2.5 py-1 rounded-md status-red text-[11px] font-sans font-semibold">
               INR Monthly
             </span>
           </div>
@@ -1558,7 +1558,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
             <div className="flex items-center gap-2">
               {/* Cost vs Usage Toggle */}
-              <div className="flex items-center gap-1 p-0.5 rounded-lg glass-well font-mono text-xs">
+              <div className="flex items-center gap-1 p-0.5 rounded-lg glass-well font-sans text-xs">
                 <button
                   type="button"
                   onClick={() => setForecastChartType('cost')}
@@ -1582,7 +1582,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   Usage (Original vs Saved)
                 </button>
               </div>
-              <span className="px-2.5 py-1 rounded-md status-green text-[11px] font-mono font-semibold">
+              <span className="px-2.5 py-1 rounded-md status-green text-[11px] font-sans font-semibold">
                 {horizonDays}d Forecast
               </span>
             </div>
@@ -1703,7 +1703,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
 
           {/* Explicit Mathematical Assumptions Callout (Requirements 2 & FinOps transparency) */}
-          <div className="mt-3 p-3.5 rounded-xl bg-black/[0.02] border border-black/[0.06] font-mono text-xs text-[#3F4450] space-y-1.5">
+          <div className="mt-3 p-3.5 rounded-xl bg-black/[0.02] border border-black/[0.06] font-sans text-xs text-[#3F4450] space-y-1.5">
             <div className="flex items-center justify-between">
               <span className="font-bold text-[#111318] text-[11px] uppercase tracking-wider">
                 {forecastChartType === 'cost' ? 'Cost Trajectory Mathematical Model' : 'Compute Usage Mathematical Model (Original vs Saved)'}

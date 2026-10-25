@@ -145,7 +145,7 @@ export const ResourceDetailModal: React.FC<ResourceDetailModalProps> = ({
               <span className="rounded-md glass-pill-neutral px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider">
                 {resource.env}
               </span>
-              <span className="rounded-md glass-pill-neutral px-2.5 py-0.5 text-[11px] font-mono font-semibold">
+              <span className="rounded-md glass-pill-neutral px-2.5 py-0.5 text-[11px] font-sans font-semibold">
                 {resource.region}
               </span>
               {isProtectedPeak && (
@@ -156,7 +156,7 @@ export const ResourceDetailModal: React.FC<ResourceDetailModalProps> = ({
             </div>
             <p className="text-xs text-[#525866] mt-1">
               Team: <span className="font-semibold text-[#111318]">{resource.team}</span> • Hardware Spec:{' '}
-              <span className="font-mono text-[#111318] font-semibold">{planName}</span>
+              <span className="font-sans text-[#111318] font-semibold">{planName}</span>
               {vcpuText && <span className="text-[#525866]"> ({vcpuText})</span>}
               {resource.ip_address && (
                 <>
@@ -171,7 +171,7 @@ export const ResourceDetailModal: React.FC<ResourceDetailModalProps> = ({
               <span className="text-[10px] uppercase tracking-wider text-[#68707E] block font-semibold">
                 Monthly Spend
               </span>
-              <span className="font-mono text-base font-bold text-[#111318]">
+              <span className="font-sans font-bold tabular-nums text-base text-[#111318]">
                 {formatINR(resource.monthly_cost_inr)}
               </span>
             </div>
@@ -195,7 +195,7 @@ export const ResourceDetailModal: React.FC<ResourceDetailModalProps> = ({
                   Peak-Safety Governor: Naive Downsizing Blocked
                 </div>
                 <p className="leading-relaxed">{explanationText}</p>
-                <div className="font-mono text-[11px] font-semibold mt-1">
+                <div className="font-sans tabular-nums text-[11px] font-semibold mt-1">
                   Telemetry: avg={Math.round(resource.metrics_summary?.cpu_avg || 0)}% | p95=
                   {Math.round(resource.metrics_summary?.cpu_p95 || 0)}% | p99=
                   {Math.round(resource.metrics_summary?.cpu_p99 || 0)}% (Safety Ceiling: 85%)
@@ -379,7 +379,7 @@ export const ResourceDetailModal: React.FC<ResourceDetailModalProps> = ({
               <span className="text-[11px] font-bold uppercase tracking-wider text-[#525866]">
                 Peak Headroom Mathematical Proof
               </span>
-              <p className="text-xs text-[#111318] leading-relaxed font-mono whitespace-pre-line bg-white/80 border border-black/[0.06] p-3 rounded-lg">
+              <p className="text-xs text-[#111318] leading-relaxed font-sans whitespace-pre-line bg-white/80 border border-black/[0.06] p-3 rounded-lg">
                 {proofText}
               </p>
               <div className="text-xs text-[#525866]">
@@ -394,20 +394,20 @@ export const ResourceDetailModal: React.FC<ResourceDetailModalProps> = ({
                     <span className="px-2.5 py-0.5 rounded status-green text-[11px] font-bold uppercase tracking-wider">
                       Recommendation Action
                     </span>
-                    <span className="rounded glass-pill-neutral px-2 py-0.5 text-[10px] font-mono font-bold">
+                    <span className="rounded glass-pill-neutral px-2 py-0.5 text-[10px] font-sans tabular-nums font-bold">
                       Confidence: {rec.confidence_score ?? rec.confidence_pct ?? 95}%
                     </span>
                   </div>
                   <h4 className="text-sm font-bold text-[#111318]">
                     {rec.action_title || rec.action_type}
                   </h4>
-                  <div className="font-mono text-xs text-[#111318] font-semibold">
+                  <div className="font-sans font-semibold text-xs text-[#111318]">
                     {rec.current_config || rec.current_spec} →{' '}
                     <span className="text-[#1D5C46]">
                       {rec.recommended_config || rec.target_spec}
                     </span>
                   </div>
-                  <div className="font-mono text-xs text-[#3F4450]">
+                  <div className="font-sans text-xs text-[#3F4450]">
                     Formula: {rec.formula_explanation || rec.formula_string}
                   </div>
                   <div className="text-xs text-[#525866]">
@@ -416,7 +416,7 @@ export const ResourceDetailModal: React.FC<ResourceDetailModalProps> = ({
                 </div>
 
                 <div className="mt-4 flex items-center justify-between pt-3 border-t border-black/[0.06]">
-                  <span className="font-mono text-sm font-bold text-[#1D5C46]">
+                  <span className="font-sans font-bold tabular-nums text-sm text-[#1D5C46]">
                     Save {formatINR(rec.monthly_savings_inr)}/mo
                   </span>
                   <div className="flex items-center gap-2">
@@ -468,7 +468,7 @@ export const ResourceDetailModal: React.FC<ResourceDetailModalProps> = ({
               <h3 className="text-sm font-bold text-[#111318]">
                 SRE Telemetry &amp; Safety Audit (OpenRisk + 24h Quantile Forecast + Rollback Runbook)
               </h3>
-              <div className="flex items-center gap-2 font-mono text-[11px]">
+              <div className="flex items-center gap-2 font-sans tabular-nums text-[11px]">
                 <span className="rounded-md bg-[#111318] text-white px-2.5 py-0.5 font-semibold">
                   {eng.provider || 'FinSort Engine'}
                 </span>
@@ -485,7 +485,7 @@ export const ResourceDetailModal: React.FC<ResourceDetailModalProps> = ({
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               {/* Col 1: OpenRisk Ordinal Capacity Assessment & GreenOps */}
-              <div className="rounded-xl bg-white/75 border border-black/[0.06] p-4 space-y-3 font-mono">
+              <div className="rounded-xl bg-white/75 border border-black/[0.06] p-4 space-y-3 font-sans tabular-nums">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] uppercase text-[#111318] font-bold">
                     OpenRisk Capacity Assessment (Open-Source)
@@ -557,7 +557,7 @@ export const ResourceDetailModal: React.FC<ResourceDetailModalProps> = ({
               {/* Col 2: 24h Pooled TFT Quantile Forecast & Blast Radius */}
               <div className="rounded-xl bg-white/75 border border-black/[0.06] p-4 space-y-3 flex flex-col justify-between">
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between font-mono">
+                  <div className="flex items-center justify-between font-sans">
                     <span className="text-[11px] uppercase text-[#111318] font-bold">
                       24h TFT Quantile Forecast
                     </span>
@@ -565,7 +565,7 @@ export const ResourceDetailModal: React.FC<ResourceDetailModalProps> = ({
                       <button
                         type="button"
                         onClick={() => setTftTarget('cpu')}
-                        className={`text-[9px] px-2 py-0.5 rounded font-mono font-bold transition-all cursor-pointer ${
+                        className={`text-[9px] px-2 py-0.5 rounded font-sans font-bold transition-all cursor-pointer ${
                           tftTarget === 'cpu'
                             ? 'bg-[#111318] text-white shadow-sm'
                             : 'glass-well text-[#525866] hover:text-[#111318]'
@@ -576,7 +576,7 @@ export const ResourceDetailModal: React.FC<ResourceDetailModalProps> = ({
                       <button
                         type="button"
                         onClick={() => setTftTarget('mem')}
-                        className={`text-[9px] px-2 py-0.5 rounded font-mono font-bold transition-all cursor-pointer ${
+                        className={`text-[9px] px-2 py-0.5 rounded font-sans font-bold transition-all cursor-pointer ${
                           tftTarget === 'mem'
                             ? 'bg-[#111318] text-white shadow-sm'
                             : 'glass-well text-[#525866] hover:text-[#111318]'
@@ -649,7 +649,7 @@ export const ResourceDetailModal: React.FC<ResourceDetailModalProps> = ({
                   </div>
 
                   {/* Key TFT Quantile Metric Badges */}
-                  <div className="grid grid-cols-3 gap-1.5 font-mono text-[10px] pt-1">
+                  <div className="grid grid-cols-3 gap-1.5 font-sans tabular-nums text-[10px] pt-1">
                     <div className="rounded-lg glass-well p-1.5 text-center">
                       <div className="text-[#68707E]">Peak {tftTarget.toUpperCase()} q90</div>
                       <div className="text-[#111318] font-bold">{peakQ90}%</div>
@@ -667,7 +667,7 @@ export const ResourceDetailModal: React.FC<ResourceDetailModalProps> = ({
 
                 {eng.blast_radius_analysis && (
                   <div className="rounded-lg glass-well p-2.5 text-xs text-[#111318] leading-relaxed">
-                    <span className="font-mono text-[10px] uppercase text-[#7C4F14] block font-bold">
+                    <span className="font-sans text-[10px] uppercase text-[#7C4F14] block font-bold">
                       Blast Radius Assessment:
                     </span>
                     {eng.blast_radius_analysis}
@@ -678,10 +678,10 @@ export const ResourceDetailModal: React.FC<ResourceDetailModalProps> = ({
               {/* Col 3: Rollback Runbook & Terraform HCL Snippet */}
               <div className="rounded-xl bg-white/75 border border-black/[0.06] p-4 space-y-3 flex flex-col justify-between">
                 <div className="space-y-2">
-                  <span className="text-[11px] font-mono uppercase text-[#111318] font-bold block">
+                  <span className="text-[11px] font-sans uppercase text-[#111318] font-bold block">
                     SRE Rollback &amp; Verification Runbook
                   </span>
-                  <ul className="space-y-1.5 text-[11px] text-[#111318] font-mono">
+                  <ul className="space-y-1.5 text-[11px] text-[#111318] font-sans">
                     {runbookSteps.slice(0, 3).map((step, i) => (
                       <li
                         key={i}
@@ -695,7 +695,7 @@ export const ResourceDetailModal: React.FC<ResourceDetailModalProps> = ({
 
                 {tfCode && (
                   <div className="space-y-1.5 pt-2 border-t border-black/[0.06]">
-                    <div className="flex items-center justify-between text-[10px] font-mono">
+                    <div className="flex items-center justify-between text-[10px] font-sans">
                       <span className="font-bold text-[#111318]">Terraform HCL Target</span>
                       <button
                         type="button"
@@ -717,7 +717,7 @@ export const ResourceDetailModal: React.FC<ResourceDetailModalProps> = ({
 
         {/* Modal Footer */}
         <div className="flex items-center justify-between border-t border-black/[0.06] bg-white/75 px-6 py-3 text-xs text-[#525866]">
-          <span className="font-mono">
+          <span className="font-sans tabular-nums">
             Monthly Spend: <strong className="text-[#111318]">{formatINR(resource.monthly_cost_inr)}/mo</strong> (Hourly: ₹
             {(resource.monthly_cost_inr / 730).toFixed(2)})
           </span>
