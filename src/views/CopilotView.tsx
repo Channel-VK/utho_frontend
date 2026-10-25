@@ -10,11 +10,11 @@ interface CopilotViewProps {
 }
 
 const QUICK_PROMPTS = [
+  'Why did our SaaS cloud bill grow 40% in six months?',
   'What are our top 3 rightsizing candidates with projected p99 < 85%?',
   'Explain ALT-001 time-to-failure analysis and OOM risk',
   'What if we hibernate dev VMs in Bangalore from 8 PM to 8 AM?',
-  'What is our 60-day unoptimized vs optimized cost trajectory?',
-  'Generate an executive briefing for cloud spend optimization',
+  'Audit orphaned resources: unattached volumes and unused IPs',
 ];
 
 const BOOTSTRAP_TIME = new Date().toISOString();
@@ -34,6 +34,95 @@ function formatTime(isoString?: string): string {
   }
 }
 
+function renderTelemetryValue(val: unknown, key?: string, depth = 0): React.ReactNode {
+  if (val === null || val === undefined) return <span className="text-[#767D8C]">—</span>;
+
+  if (typeof val === 'number') {
+    const k = (key || '').toLowerCase();
+    if (k.includes('inr') || k.includes('cost') || k.includes('saving') || k.includes('spend') || k.includes('bleed') || k.includes('runway') || k.includes('rate')) {
+      return <span className="font-semibold text-[#111318]">{formatINR(val)}</span>;
+    }
+    if (k.includes('pct') || k.includes('percent') || k.includes('p95') || k.includes('p99') || k.includes('ratio')) {
+      return <span>{val.toFixed(1)}%</span>;
+    }
+    return <span>{Number.isInteger(val) ? val.toLocaleString() : val.toFixed(2)}</span>;
+  }
+
+  if (typeof val === 'boolean') {
+    return <span className={val ? 'text-[#236B52] font-semibold' : 'text-[#767D8C]'}>{val ? 'Yes' : 'No'}</span>;
+  }
+
+  if (typeof val === 'string') {
+    return <span>{val}</span>;
+  }
+
+  if (depth > 2) {
+    try {
+      return <span className="font-mono text-[10px]">{JSON.stringify(val)}</span>;
+    } catch {
+      return <span className="font-mono text-[10px]">—</span>;
+    }
+  }
+
+  if (Array.isArray(val)) {
+    if (val.length === 0) return <span className="text-[#767D8C]">Empty</span>;
+    const isPrimitive = val.every((item) => typeof item !== 'object' || item === null);
+    if (isPrimitive) {
+      return (
+        <div className="flex flex-wrap gap-1 mt-0.5">
+          {val.map((item, idx) => (
+            <span key={idx} className="inline-block px-1.5 py-0.5 rounded bg-black/[0.04] text-[10px] font-mono text-[#111318]">
+              {item === null || item === undefined ? '—' : String(item)}
+            </span>
+          ))}
+        </div>
+      );
+    }
+    return (
+      <div className="space-y-1.5 mt-1 max-h-56 overflow-y-auto pr-0.5">
+        {val.slice(0, 8).map((item, idx) => (
+          <div key={idx} className="p-2 bg-white/95 rounded-lg border border-black/[0.07] text-[10px] font-mono space-y-1 shadow-2xs">
+            {typeof item === 'object' && item !== null ? (
+              Object.entries(item).map(([k, v]) => (
+                <div key={k} className="flex items-center justify-between gap-2">
+                  <span className="text-[#767D8C] capitalize truncate font-medium">{k.replace(/_/g, ' ')}:</span>
+                  <div className="font-semibold text-[#111318] truncate text-right">
+                    {renderTelemetryValue(v, k, depth + 1)}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <span>{item === null || item === undefined ? '—' : String(item)}</span>
+            )}
+          </div>
+        ))}
+        {val.length > 8 && (
+          <div className="text-[9px] text-[#767D8C] text-center font-mono">+{val.length - 8} more items</div>
+        )}
+      </div>
+    );
+  }
+
+  if (typeof val === 'object') {
+    const entries = Object.entries(val as Record<string, unknown>);
+    if (entries.length === 0) return <span className="text-[#767D8C]">—</span>;
+    return (
+      <div className="space-y-1 mt-1 p-2 bg-white/90 rounded-lg border border-black/[0.06] shadow-2xs">
+        {entries.map(([subK, subV]) => (
+          <div key={subK} className="flex items-center justify-between text-[10px] gap-2 font-mono">
+            <span className="text-[#767D8C] truncate capitalize font-medium">{subK.replace(/_/g, ' ')}:</span>
+            <div className="font-semibold text-[#111318] truncate text-right">
+              {renderTelemetryValue(subV, subK, depth + 1)}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return <span>{String(val)}</span>;
+}
+
 export const CopilotView: React.FC<CopilotViewProps> = ({
   isAIConnected = false,
   onInspectResource: _onInspectResource,
@@ -43,7 +132,7 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
     {
       role: 'assistant',
       content:
-        'SmartCloud Copilot online. Grounded across all 85 Utho Cloud resources, TimescaleDB time-series telemetry, p95/p99 peak safety governors, and Indian Rupee (₹) pricing catalog. How can I assist your FinOps or SRE review today?',
+        'FinSort Copilot online. Grounded across all 85 Utho Cloud resources (Noida, Bangalore, Mumbai), TimescaleDB telemetry, p95/p99 peak safety governors, and Indian Rupee (₹) pricing catalog. How can I assist your FinOps or SRE review today?',
       created_at: BOOTSTRAP_TIME,
       tool: 'copilot_bootstrap',
     },
@@ -131,16 +220,15 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#236B52] shadow-xs" />
               <h2 className="text-lg font-semibold text-[#111318] tracking-tight">
-                AI FinOps &amp; SRE Copilot
+                FinSort Copilot
               </h2>
               <span
                 className={`text-[10px] font-mono px-2 py-0.5 rounded-md font-semibold ${
                   isAIConnected ? 'status-green' : 'status-yellow'
                 }`}
               >
-                {isAIConnected ? 'TimescaleDB + Gemini Live' : 'Deterministic SRE Mode'}
+                {isAIConnected ? 'Online' : 'Standby Engine'}
               </span>
             </div>
             <p className="text-xs text-[#767D8C]">
@@ -177,7 +265,7 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
             <div className="text-[10px] uppercase tracking-wider text-[#767D8C] font-semibold">
               Time-Series DB
             </div>
-            <div className="text-sm font-semibold text-[#111318] mt-0.5">TimescaleDB PG16</div>
+            <div className="text-sm font-semibold text-[#111318] mt-0.5">TimescaleDB Telemetry</div>
             <div className="text-[10px] text-[#236B52] font-mono mt-0.5">Hypertables Synced</div>
           </div>
 
@@ -211,7 +299,7 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
               >
                 {/* Sender badge */}
                 <div className="flex items-center gap-2 px-1 text-[11px] font-mono text-[#767D8C]">
-                  <span>{isUser ? 'Alex Rivera (DevSecOps)' : 'SmartCloud Copilot'}</span>
+                  <span>{isUser ? 'Alex Rivera (SRE)' : 'FinSort Copilot'}</span>
                   {msg.tool && (
                     <span className="text-[10px] font-mono px-2 py-0.2 rounded-md status-green">
                       tool: {msg.tool}
@@ -224,13 +312,13 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
 
                 {/* Bubble Container */}
                 <div
-                  className={`p-4 rounded-2xl max-w-[85%] text-xs leading-relaxed ${
+                  className={`p-4 rounded-2xl max-w-[90%] text-xs leading-relaxed ${
                     isUser
                       ? 'bg-[#111318] text-white shadow-xs'
                       : 'glass-well text-[#111318] border border-black/[0.06]'
                   }`}
                 >
-                  <p className="whitespace-pre-wrap">{msg.content}</p>
+                  <p className="whitespace-pre-wrap">{typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content, null, 2)}</p>
 
                   {/* Structured Tool Data Card */}
                   {msg.data && typeof msg.data === 'object' && (
@@ -238,19 +326,17 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
                       <div className="text-[10px] uppercase tracking-wider font-semibold text-[#767D8C]">
                         Grounded Telemetry Payload
                       </div>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      <div className="space-y-2">
                         {Object.entries(msg.data).map(([key, val]) => (
                           <div
                             key={key}
-                            className="bg-white/80 p-2 rounded-lg border border-black/[0.05]"
+                            className="bg-white/80 p-2.5 rounded-lg border border-black/[0.05]"
                           >
-                            <div className="text-[9px] uppercase font-mono text-[#767D8C] truncate">
+                            <div className="text-[9px] uppercase font-mono text-[#767D8C] truncate font-semibold">
                               {key.replace(/_/g, ' ')}
                             </div>
-                            <div className="text-xs font-semibold text-[#111318] font-mono mt-0.5 truncate">
-                              {typeof val === 'number' && key.includes('inr')
-                                ? formatINR(val)
-                                : String(val)}
+                            <div className="text-xs font-medium text-[#111318] font-mono mt-0.5">
+                              {renderTelemetryValue(val, key)}
                             </div>
                           </div>
                         ))}
@@ -265,7 +351,7 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
           {isLoading && (
             <div className="flex flex-col items-start space-y-1.5">
               <div className="flex items-center gap-2 px-1 text-[11px] font-mono text-[#767D8C]">
-                <span>SmartCloud Copilot</span>
+                <span>FinSort Copilot</span>
                 <span className="status-yellow text-[10px] px-2 py-0.2 rounded-md">
                   Analyzing TimescaleDB Telemetry...
                 </span>

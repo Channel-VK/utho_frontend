@@ -181,7 +181,7 @@ class LocalFinOpsEngine {
       spend_by_env: spendByEnv,
       spend_by_region: spendByRegion,
       ai_engine_connected: this.isAIConnected,
-      ai_engine_service: this.isAIConnected ? 'smartcloud-ai-engine' : 'fallback-go-deterministic',
+      ai_engine_service: this.isAIConnected ? 'finsort-ai-engine' : 'fallback-go-deterministic',
     };
   }
 
@@ -252,7 +252,7 @@ class LocalFinOpsEngine {
 
     if (resource.optimization_status === 'PROTECTED_PEAK_LOAD') {
       peakExplanation = `CPU average is ${cpuAvg}%, but 30-day p99 bursts to ${cpuP99}%. Naive downsizing based solely on average metrics would cut compute by 50%, resulting in immediate 100% CPU saturation and service outages during peak loads.`;
-      naiveComparison = `Naive Avg Tool Recommendation: Downsize to 2 vCPU (Saves ₹24,000/mo, SLA FAILURE RISK 99.8%).\nPeak-Safe SmartCloud Decision: Retain full ${resource.vcpu || 16} vCPU capacity (Required_Peak = ${(Math.max(cpuP95, memP95) * 1.25).toFixed(1)}% > 70% ceiling).`;
+      naiveComparison = `Naive Avg Tool Recommendation: Downsize to 2 vCPU (Saves ₹24,000/mo, SLA FAILURE RISK 99.8%).\nPeak-Safe FinSort Decision: Retain full ${resource.vcpu || 16} vCPU capacity (Required_Peak = ${(Math.max(cpuP95, memP95) * 1.25).toFixed(1)}% > 70% ceiling).`;
       riskAssessment = 'Downsizing blocked by Peak-Safety Governor. Headroom threshold violated (>85% p99).';
       blastRadius = `CRITICAL Tier-1 Production Path (${resource.team} / ${resource.region}): Downsizing would saturate CPU queues during peak bursts (${cpuP99}% p99), causing HTTP 502/504 timeouts.`;
       workloadClass = 'Bursty Transactional Production';
@@ -639,7 +639,7 @@ class LocalFinOpsEngine {
 
     const cliScripts = [
       '#!/usr/bin/env bash',
-      '# SmartCloud Optimizer — Automated Utho Remediation Script',
+      '# FinSort — Automated Utho Remediation Script',
       `# Generated at: ${new Date().toISOString()}`,
       'set -euo pipefail',
       '',
@@ -649,7 +649,7 @@ class LocalFinOpsEngine {
     ];
 
     const tfBlocks = [
-      '# SmartCloud Optimizer — Terraform HCL Remediation Changes',
+      '# FinSort — Terraform HCL Remediation Changes',
       `# Generated at: ${new Date().toISOString()}`,
       '# Apply via: terraform plan -out=finops.plan && terraform apply finops.plan',
       '',
@@ -692,41 +692,265 @@ class LocalFinOpsEngine {
     let toolUsed = 'finops_overview';
     let dataPayload: any = null;
 
-    if (lower.includes('saving') || lower.includes('rightsiz') || lower.includes('recommend')) {
-      toolUsed = 'rightsizing_inventory';
+    if (
+      lower.includes('40%') ||
+      lower.includes('grow') ||
+      lower.includes('bill') ||
+      lower.includes('quiet tax') ||
+      lower.includes('saas') ||
+      lower.includes('leadership')
+    ) {
+      toolUsed = 'financial_growth_audit';
       reply =
-        'Based on our deterministic 85-resource audit across in-noida-1, in-bangalore-1, and in-mumbai-1, we identified ₹2,77,230/mo in total potential savings. ₹1,50,310/mo is already accepted across 12 high-confidence recommendations. All candidate downsizings pass the SRE Peak-Safety Governor (Projected p99 < 85%).';
+        'FinSort Root-Cause Diagnosis (40% SaaS Cloud Bill Growth):\n\nOur audit of your 85 Utho Cloud VMs across Noida, Bangalore, and Mumbai reveals leadership\'s 40% cost increase stems from three quiet taxes:\n\n1. Over-Provisioned Compute (₹1,50,310/mo waste): 20 VMs sized for catastrophic worst-day peaks and never revisited. CPU utilization averages under 18% outside daily 30-minute spikes.\n2. Non-Prod Off-Hours Bleed (₹78,400/mo waste): 28 staging and dev instances run 24/7 through weekends and overnight hours (118 idle hours per node each week).\n3. Orphaned Infrastructure (₹48,520/mo waste): 14 unattached NVMe block storage volumes and 6 unmapped elastic IPv4 addresses outlived the project sprints that created them.\n\nApplying FinSort peak-safe recommendations cuts monthly spend from ₹6,83,200 to ₹5,32,890 (-22.0% immediate accepted run-rate), unlocking ₹2,77,230/mo in total optimization runway.';
       dataPayload = {
-        total_monthly_savings_inr: 277230,
-        accepted_savings_inr: 150310,
-        candidates_count: 20,
-        governor_threshold: 'p99 < 85%',
+        baseline_monthly_spend_inr: 683200,
+        projected_optimized_spend_inr: 532890,
+        accepted_monthly_savings_inr: 150310,
+        total_potential_runway_inr: 277230,
+        overprovisioned_compute_waste_inr: 150310,
+        off_hours_idle_waste_inr: 78400,
+        orphaned_assets_waste_inr: 48520,
       };
-    } else if (lower.includes('alert') || lower.includes('anomal') || lower.includes('failure') || lower.includes('ttf')) {
-      toolUsed = 'anomaly_correlation';
+    } else if (
+      lower.includes('alt-001') ||
+      lower.includes('oom') ||
+      lower.includes('heap') ||
+      lower.includes('search-indexer') ||
+      lower.includes('memory leak')
+    ) {
+      toolUsed = 'anomaly_telemetry';
       reply =
-        'Telemetry shows 3 active critical alerts: ALT-001 (prod-search-indexer-04) memory leak with 6.6 hours to OOM kernel panic; ALT-002 (staging-loadtest-cluster) idle bleed at ₹2,986/day; and ALT-003 (prod-postgres-wal-volume) disk exhaustion in 9.8 days.';
+        'ALT-001 Telemetry & Root-Cause Analysis (prod-search-indexer-04 in in-mumbai-1):\n\n• Workload: Production Elasticsearch/Lucene indexer (res-vm-015, m8.2xlarge, 32 GB RAM).\n• Telemetry Symptom: Linear memory creep of +1.8% RAM per hour without GC reclamation (currently at 89.4%).\n• Time-to-Failure (TTF): ~6.6 to 14.0 hours before Linux OOM killer panic triggers pod termination.\n• Root Cause: Unbounded Lucene query cache leak aggravated by unindexed customer search facets.\n• Remediation: Automated rolling pod restart staged, JVM max heap ceiling set to 12 GB (-Xmx12g), and host downsized to m8.xlarge saving ₹9,600/mo once leak is patched.';
       dataPayload = {
-        active_critical_alerts: 3,
-        urgent_ttf_target: 'res-vm-015 (prod-search-indexer-04)',
-        urgent_ttf_hours: 6.6,
+        alert_id: 'ALT-001',
+        resource_id: 'res-vm-015',
+        resource_name: 'prod-search-indexer-04',
+        region: 'in-mumbai-1',
+        time_to_failure_hours: 6.6,
+        current_memory_pct: 89.4,
+        root_cause: 'JVM Lucene search filter cache leak',
+        recommended_action: 'Staged pod restart & set -Xmx12g',
+        potential_savings_inr: 9600,
       };
-    } else if (lower.includes('what if') || lower.includes('simulat') || lower.includes('dev') || lower.includes('bangalore')) {
-      toolUsed = 'what_if_simulator';
+    } else if (lower.includes('alt-002') || lower.includes('loadtest')) {
+      toolUsed = 'anomaly_telemetry';
       reply =
-        'Simulating scenario: Off-hours hibernation for Bangalore dev/staging instances yields ₹78,400/mo reduction while maintaining +25% peak headroom buffer.';
+        'ALT-002 Anomaly Analysis (staging-loadtest-cluster in in-bangalore-1):\n\n• Workload: 8 staging VMs running continuously at 0% load since Friday 18:00 IST.\n• Cost Bleed: ₹2,986/day in unutilized capacity.\n• Root Cause: Automated regression suite left worker nodes up after load test completion.\n• Remediation: Auto-pause loadtest nodes via FinSort policy; enroll in Bangalore off-hours hibernation to prevent weekend idle billing.';
       dataPayload = {
-        simulated_savings_inr: 78400,
-        headroom_pct: 25,
+        alert_id: 'ALT-002',
+        cluster: 'staging-loadtest-cluster',
         region: 'in-bangalore-1',
+        daily_bleed_inr: 2986,
+        status: 'Idle 0% CPU since Friday 18:00 IST',
+      };
+    } else if (lower.includes('alt-003') || lower.includes('wal') || lower.includes('postgres')) {
+      toolUsed = 'anomaly_telemetry';
+      reply =
+        'ALT-003 Disk Exhaustion Analysis (prod-postgres-wal-volume in in-noida-1):\n\n• Workload: PostgreSQL WAL replication disk (res-vol-022, 500 GB NVMe).\n• Telemetry: Disk space at 88.4% capacity, growing +3.2 GB/day.\n• Time-to-Failure (TTF): 9.8 days until disk full panic puts primary PostgreSQL into read-only recovery.\n• Root Cause: Stale replication slot on standby node blocking WAL recycling.\n• Remediation: Drop inactive replication slot, expand disk by 100 GB via Utho API, and enable WAL compression.';
+      dataPayload = {
+        alert_id: 'ALT-003',
+        volume_id: 'res-vol-022',
+        region: 'in-noida-1',
+        time_to_failure_days: 9.8,
+        utilization_pct: 88.4,
+        root_cause: 'Stale replication slot blocking WAL cleanup',
+      };
+    } else if (
+      lower.includes('rightsiz') ||
+      lower.includes('downsize') ||
+      lower.includes('candidate') ||
+      lower.includes('p99') ||
+      lower.includes('top 3')
+    ) {
+      toolUsed = 'rightsizing_engine';
+      reply =
+        'FinSort Top Rightsizing Candidates (Strictly Enforcing p99 < 85% Peak Safety):\n\n1. prod-search-indexer-04 (res-vm-015 · in-mumbai-1):\n   • Current: m8.2xlarge (8 vCPU / 32 GB) @ ₹24,800/mo\n   • Recommended: m8.xlarge (4 vCPU / 16 GB) @ ₹15,200/mo\n   • Monthly Savings: ₹9,600/mo (-38.7%)\n   • Peak Safety: Projected p99 CPU is 68.2%, well below the 85% safety ceiling.\n\n2. dev-api-gateway-02 (res-vm-003 · in-bangalore-1):\n   • Current: c4.large (4 vCPU / 8 GB) @ ₹9,200/mo\n   • Recommended: c4.medium (2 vCPU / 4 GB) @ ₹5,000/mo\n   • Monthly Savings: ₹4,200/mo (-45.7%)\n   • Peak Safety: Projected p99 CPU is 42.1%.\n\n3. staging-worker-08 (res-vm-027 · in-noida-1):\n   • Current: m4.xlarge (4 vCPU / 16 GB) @ ₹8,600/mo\n   • Recommended: m4.large (2 vCPU / 8 GB) @ ₹4,800/mo\n   • Monthly Savings: ₹3,800/mo (-44.2%)\n   • Peak Safety: Projected p99 CPU is 51.4%.\n\nTotal rightsizing pipeline includes 20 candidates yielding ₹1,50,310/mo in recurring savings without any SLA degradation.';
+      dataPayload = {
+        top_candidates: [
+          {
+            resource_id: 'res-vm-015',
+            name: 'prod-search-indexer-04',
+            region: 'in-mumbai-1',
+            current_plan: 'm8.2xlarge',
+            recommended_plan: 'm8.xlarge',
+            monthly_savings_inr: 9600,
+            projected_p99_cpu: '68.2%',
+          },
+          {
+            resource_id: 'res-vm-003',
+            name: 'dev-api-gateway-02',
+            region: 'in-bangalore-1',
+            current_plan: 'c4.large',
+            recommended_plan: 'c4.medium',
+            monthly_savings_inr: 4200,
+            projected_p99_cpu: '42.1%',
+          },
+          {
+            resource_id: 'res-vm-027',
+            name: 'staging-worker-08',
+            region: 'in-noida-1',
+            current_plan: 'm4.xlarge',
+            recommended_plan: 'm4.large',
+            monthly_savings_inr: 3800,
+            projected_p99_cpu: '51.4%',
+          },
+        ],
+        total_rightsizing_candidates: 20,
+        total_monthly_savings_inr: 150310,
+        peak_safety_ceiling: 'p99 < 85%',
+      };
+    } else if (
+      lower.includes('orphan') ||
+      lower.includes('unattached') ||
+      lower.includes('disk') ||
+      lower.includes('volume') ||
+      lower.includes('unused ip')
+    ) {
+      toolUsed = 'orphaned_inventory';
+      reply =
+        'FinSort Orphaned Asset Audit (Utho Cloud Fleet):\n\n• Unattached NVMe Block Volumes: 14 volumes (total 2,400 GB) unmounted for >30 days across Noida, Bangalore, and Mumbai, costing ₹38,400/mo with zero I/O activity.\n• Unused Public IPv4 Addresses: 6 elastic IPs unallocated to any active VM, generating ₹10,120/mo in idle retention fees.\n• Total Orphaned Waste: ₹48,520/mo.\n• Action: One-click safe cleanup generates Terraform destroy code and Utho CLI purge commands after taking automated point-in-time snapshots.';
+      dataPayload = {
+        unattached_nvme_volumes: 14,
+        unattached_volume_spend_inr: 38400,
+        unused_elastic_ips: 6,
+        unused_ip_spend_inr: 10120,
+        total_orphaned_waste_inr: 48520,
+        recommendation: 'Snapshot and purge unattached block storage & release idle IPs',
+      };
+    } else if (
+      lower.includes('what if') ||
+      lower.includes('hibernate') ||
+      lower.includes('shut down') ||
+      lower.includes('schedule') ||
+      lower.includes('weekend') ||
+      lower.includes('off-hours')
+    ) {
+      toolUsed = 'scenario_simulator';
+      reply =
+        'FinSort What-If Policy Simulation (Bangalore & Noida Non-Prod Workloads):\n\n• Policy: Automated hibernation from 8:00 PM to 8:00 AM IST on weekdays and 24 hours on weekends.\n• Scope: 28 non-production instances (16 in Bangalore, 12 in Noida).\n• Run-Time Reclaimed: 118 idle hours per node each week (~70% reduction in non-prod compute hours).\n• Monthly Savings: ₹78,400 to ₹82,200/mo in recurring cloud bill savings.\n• Peak Safety: All production VMs in Mumbai remain 100% online under the Peak-Safety Governor without latency spikes.';
+      dataPayload = {
+        simulated_monthly_savings_inr: 78400,
+        reclaimed_hours_per_week: 118,
+        affected_non_prod_vms: 28,
+        headroom_safety_pct: 25,
+        target_regions: ['in-bangalore-1', 'in-noida-1'],
+      };
+    } else if (lower.includes('res-vm-015') || lower.includes('prod-search-indexer')) {
+      toolUsed = 'resource_telemetry';
+      reply =
+        'FinSort SRE Resource Inspection: prod-search-indexer-04 (res-vm-015 · in-mumbai-1)\n\n• Workload: Production Elasticsearch & Lucene search cluster (Search & Catalog team).\n• Current Plan: m8.2xlarge (8 vCPU / 32 GB RAM / 100 GB NVMe) @ ₹24,800/mo.\n• Recommended Plan: m8.xlarge (4 vCPU / 16 GB RAM) @ ₹15,200/mo.\n• Monthly Savings: ₹9,600/mo (-38.7%).\n• Telemetry: CPU p50: 18.4%, p95: 58.2%, p99: 68.2% (safely below 85% governor ceiling).\n• Active Incident (ALT-001): Linear memory creep of +1.8% RAM/hr without GC recovery (currently 89.4%). Time-to-Failure (TTF): ~6.6 to 14.0 hours until Linux OOM killer panic.\n• Root Cause: Unbounded Lucene filter cache leak aggravated by unindexed customer query facets.\n• Remediation: Staged rolling pod restart, JVM ceiling set to -Xmx12g, and host downsized to m8.xlarge once leak is resolved.';
+      dataPayload = {
+        resource_id: 'res-vm-015',
+        name: 'prod-search-indexer-04',
+        region: 'in-mumbai-1',
+        environment: 'prod',
+        current_plan: 'm8.2xlarge',
+        recommended_plan: 'm8.xlarge',
+        current_spend_inr: 24800,
+        monthly_savings_inr: 9600,
+        projected_p99_cpu: '68.2%',
+        active_alert: 'ALT-001 (JVM Heap Leak)',
+        time_to_failure_hours: 6.6,
+      };
+    } else if (lower.includes('res-vm-003') || lower.includes('dev-api-gateway')) {
+      toolUsed = 'resource_telemetry';
+      reply =
+        'FinSort SRE Resource Inspection: dev-api-gateway-02 (res-vm-003 · in-bangalore-1)\n\n• Workload: Development API Gateway & Mock Proxy (Core API team).\n• Current Plan: c4.large (4 vCPU / 8 GB RAM) @ ₹9,200/mo.\n• Recommended Plan: c4.medium (2 vCPU / 4 GB RAM) @ ₹5,000/mo.\n• Monthly Savings: ₹4,200/mo (-45.7%).\n• Telemetry: CPU p50: 8.4%, p95: 32.1%, p99: 42.1%. Memory p95: 38.0%.\n• Opportunity: Workload is idle on weekends and overnight (20:00 to 08:00 IST). Enrolling in Bangalore off-hours hibernation saves an additional ₹1,800/mo.';
+      dataPayload = {
+        resource_id: 'res-vm-003',
+        name: 'dev-api-gateway-02',
+        region: 'in-bangalore-1',
+        environment: 'dev',
+        current_plan: 'c4.large',
+        recommended_plan: 'c4.medium',
+        current_spend_inr: 9200,
+        monthly_savings_inr: 4200,
+        projected_p99_cpu: '42.1%',
+        status: 'ACTIONABLE_RIGHTSIZE',
+      };
+    } else if (lower.includes('res-vm-027') || lower.includes('staging-worker')) {
+      toolUsed = 'resource_telemetry';
+      reply =
+        'FinSort SRE Resource Inspection: staging-worker-08 (res-vm-027 · in-noida-1)\n\n• Workload: Staging Background Job Worker (Logistics team).\n• Current Plan: m4.xlarge (4 vCPU / 16 GB RAM) @ ₹8,600/mo.\n• Recommended Plan: m4.large (2 vCPU / 8 GB RAM) @ ₹4,800/mo.\n• Monthly Savings: ₹3,800/mo (-44.2%).\n• Telemetry: CPU p50: 12.1%, p95: 41.5%, p99: 51.4% (well within 25% safety headroom).\n• Status: Actionable rightsize candidate with zero SLA risk.';
+      dataPayload = {
+        resource_id: 'res-vm-027',
+        name: 'staging-worker-08',
+        region: 'in-noida-1',
+        environment: 'staging',
+        current_plan: 'm4.xlarge',
+        recommended_plan: 'm4.large',
+        current_spend_inr: 8600,
+        monthly_savings_inr: 3800,
+        projected_p99_cpu: '51.4%',
+        status: 'ACTIONABLE_RIGHTSIZE',
+      };
+    } else if (lower.includes('vm-utho-0912') || lower.includes('prod-postgres-primary')) {
+      toolUsed = 'peak_safety_telemetry';
+      reply =
+        'FinSort Peak-Safety Inspection: prod-postgres-primary (vm-utho-0912 · in-noida-1)\n\n• Workload: Primary Transactional Database (Platform DB team).\n• Current Plan: 16 vCPU / 64 GB RAM / 500 GB NVMe @ ₹32,000/mo.\n• Optimization Status: PROTECTED_PEAK_LOAD (Do NOT Downsize).\n• SRE Governor Rationale: Naive average CPU is only 17.8%, but p99 surges to 89.4% during 20:00-22:00 IST peak checkout batches. Downsizing is strictly blocked by FinSort\'s peak-safety governor to prevent database queuing timeouts and revenue-impacting SLA failures.';
+      dataPayload = {
+        resource_id: 'vm-utho-0912',
+        name: 'prod-postgres-primary',
+        region: 'in-noida-1',
+        environment: 'prod',
+        optimization_status: 'PROTECTED_PEAK_LOAD',
+        average_cpu_pct: 17.8,
+        peak_cpu_p99: 89.4,
+        governor_action: 'Downsizing Blocked (Peak SLA Protection)',
+      };
+    } else if (lower.includes('idle') || lower.includes('zombie') || lower.includes('unutilized')) {
+      toolUsed = 'zombie_inventory';
+      reply =
+        'FinSort Idle & Zombie Workload Audit (Utho Cloud Fleet):\n\n• 5 Zombie VMs: Operating >30 days with average CPU <2.0% and network I/O <0.5 Mbps across Noida and Bangalore, costing ₹18,400/mo.\n• Staging Idle Cluster: 8 staging worker instances left running at 0% load since Friday 18:00 IST (ALT-002), bleeding ₹2,986/day.\n• Total Idle Waste: ₹32,600/mo in unutilized compute.\n• Action: Flagged for automated snapshot followed by graceful decommission or enrollment in scheduled off-hours shutdown.';
+      dataPayload = {
+        zombie_instances_count: 5,
+        zombie_monthly_bleed_inr: 18400,
+        staging_idle_bleed_day_inr: 2986,
+        total_idle_waste_inr: 32600,
+        recommended_action: 'Snapshot and terminate zombie instances',
+      };
+    } else if (lower.includes('environment') || lower.includes('production') || lower.includes('dev') || lower.includes('staging')) {
+      toolUsed = 'environment_telemetry';
+      reply =
+        'FinSort Environment Spend & Node Distribution (85 Nodes):\n\n• Production: 45 nodes · ₹4,62,500/mo (67.7% of bill) · High peak-safety governor active (p99 < 85%).\n• Staging: 24 nodes · ₹1,38,500/mo (20.3% of bill) · Candidate for nightly and weekend off-hours pauses.\n• Development: 16 nodes · ₹82,200/mo (12.0% of bill) · Primary target for 8 PM - 8 AM scheduled hibernation.';
+      dataPayload = {
+        prod_spend_inr: 462500,
+        staging_spend_inr: 138500,
+        dev_spend_inr: 82200,
+        total_monthly_spend_inr: 683200,
+      };
+    } else if (lower.includes('sustainab') || lower.includes('carbon') || lower.includes('green') || lower.includes('co2')) {
+      toolUsed = 'sustainability';
+      reply =
+        'FinSort GreenOps & Sustainability Audit:\n\n• Energy Reduction: 7,816 kWh / month saved across the 85-node fleet through rightsizing and dev off-hours shutdown.\n• Carbon Reduction: ~5,550 kg CO2e / month avoided, based on India Central Electricity Authority grid factor (0.71 kg CO2e / kWh) and PUE 1.4.\n• Equivalent Impact: Equivalent to planting 252 mature trees annually or removing 14 passenger vehicles from the road.';
+      dataPayload = {
+        monthly_energy_saved_kwh: 7816,
+        monthly_carbon_saved_kg_co2e: 5550,
+        equivalent_trees_planted: 252,
+        india_cea_grid_factor: '0.71 kg/kWh',
+        datacenter_pue: 1.4,
+      };
+    } else if (lower.includes('terraform') || lower.includes('iac') || lower.includes('hcl') || lower.includes('remediation')) {
+      toolUsed = 'remediation_export';
+      reply =
+        'FinSort Automated Remediation & Terraform Export:\n\n• 1-Click Code Generation: Generates production-ready Terraform HCL and Utho CLI shell scripts for all approved recommendations.\n• Safety Precautions: Automated point-in-time snapshot commands are prepended before any instance resize or volume purge.\n• Rollback Ready: Every script includes an instant rollback command (<90s recovery).\n• Tags: Resources are tagged with ManagedBy = "FinSort-FinOps" and FinOpsStatus = "Optimized".';
+      dataPayload = {
+        iac_provider: 'Terraform + Utho CLI',
+        snapshot_verification: 'Automated Pre-Execution Snapshot',
+        rollback_recovery_time_sec: 90,
+        management_tag: 'ManagedBy = FinSort-FinOps',
       };
     } else {
       reply =
-        'SmartCloud Copilot is connected. I monitor all 85 Utho Cloud resources, real-time p95/p99 telemetry, INR cost optimization opportunities, and SRE anomaly predictions. Ask me about rightsizing, active alerts, cost forecasts, or simulation scenarios.';
+        'FinSort Copilot is online and actively monitoring your 85 Utho Cloud nodes across Noida, Bangalore, and Mumbai.\n\nCurrent Baseline: ₹6,83,200/mo | Immediate Run-Rate: ₹5,32,890/mo (-22.0% accepted) | Total Runway: ₹2,77,230/mo.\n\nKey questions you can ask me:\n• "Why did our SaaS cloud bill grow 40% in six months?"\n• "What are our top 3 rightsizing candidates with projected p99 < 85%?"\n• "Audit orphaned resources: unattached volumes and unused IPs"\n• "Explain ALT-001 time-to-failure analysis and OOM risk"\n• "What if we hibernate dev VMs in Bangalore from 8 PM to 8 AM?"\n• "Tell me about res-vm-015 (or any specific VM / volume)"\n• "Break down spend across Noida, Bangalore, and Mumbai"';
       dataPayload = {
-        total_resources: 85,
-        active_regions: ['in-noida-1', 'in-bangalore-1', 'in-mumbai-1'],
-        currency: 'INR (₹)',
+        total_nodes: 85,
+        current_monthly_spend_inr: 683200,
+        accepted_monthly_savings_inr: 150310,
+        total_potential_savings_inr: 277230,
+        active_critical_alerts: 3,
+        peak_safety_standard: 'p99 < 85%',
       };
     }
 
@@ -735,7 +959,7 @@ class LocalFinOpsEngine {
       answer: reply,
       tool: toolUsed,
       data: dataPayload,
-      model: 'SmartCloud-FinOps-Copilot (Deterministic SRE Fallback)',
+      model: 'FinSort-FinOps-Copilot (Deterministic SRE Engine)',
     };
   }
 
@@ -748,7 +972,8 @@ class LocalFinOpsEngine {
       messages: [
         {
           role: 'assistant',
-          content: 'SmartCloud Copilot connected. How can I help you optimize your Utho Cloud infrastructure today?',
+          content:
+            'FinSort Copilot connected. How can I assist with your 85 Utho Cloud nodes, 40% bill growth audit, or rightsizing ledger today?',
           created_at: now,
         },
       ],

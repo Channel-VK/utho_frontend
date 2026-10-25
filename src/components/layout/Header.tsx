@@ -58,16 +58,16 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const screenTitle =
     activeTab === 'dashboard'
-      ? 'Cloud Spending & Server Usage'
+      ? 'Fleet Spend & Utilization'
       : activeTab === 'simulator'
-      ? 'Simulator & Alerts'
+      ? 'Scenario Simulator & Alerts'
       : activeTab === 'recommendations'
-      ? 'Recommendations & Pricing'
+      ? 'Actionable Recommendations'
       : activeTab === 'inventory'
-      ? 'Full Fleet Inventory (85 Resources)'
+      ? 'Infrastructure Inventory (85 Nodes)'
       : activeTab === 'copilot'
-      ? 'AI FinOps Copilot & TimescaleDB Telemetry'
-      : 'Optimization Governance & Pricing Math';
+      ? 'FinOps Copilot'
+      : 'Pricing & Governance Math';
 
   const isSpendingAll =
     activeTab === 'dashboard' &&
@@ -91,14 +91,14 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <div className="flex items-center gap-2.5">
               <div className="w-7 h-7 rounded-lg bg-[#111318] flex items-center justify-center font-bold text-white text-xs tracking-wider shadow-xs">
-                CO
+                FS
               </div>
               <span className="font-semibold text-[16px] text-[#111318] tracking-tight">
-                CloudOpt
+                FinSort
               </span>
             </div>
-            <span className="text-[10px] uppercase font-mono font-semibold tracking-widest text-[#4A505C] glass-pill-neutral px-2 py-0.5 rounded-md">
-              FinSort
+            <span className="text-[10px] font-mono text-[#767D8C] tracking-wide">
+              v1.0
             </span>
           </div>
 
@@ -161,7 +161,7 @@ export const Header: React.FC<HeaderProps> = ({
                   : 'font-medium text-[#4A505C] hover:text-[#111318] hover:bg-black/[0.04]'
               }`}
             >
-              <span>Cloud Spending</span>
+              <span>Fleet Spend</span>
               <span
                 className={`text-[10px] font-mono px-2 py-0.5 rounded-md font-semibold ${
                   isSpendingAll
@@ -205,7 +205,7 @@ export const Header: React.FC<HeaderProps> = ({
                   : 'font-medium text-[#4A505C] hover:text-[#111318] hover:bg-black/[0.04]'
               }`}
             >
-              <span>Recommendations &amp; Pricing</span>
+              <span>Actionable Recommendations</span>
               <span
                 className={`text-[10px] font-mono px-2 py-0.5 rounded-md font-semibold ${
                   activeTab === 'recommendations'
@@ -228,7 +228,7 @@ export const Header: React.FC<HeaderProps> = ({
                   : 'font-medium text-[#4A505C] hover:text-[#111318] hover:bg-black/[0.04]'
               }`}
             >
-              <span>AI FinOps Copilot</span>
+              <span>FinOps Copilot</span>
               <span
                 className={`text-[10px] font-mono px-2 py-0.5 rounded-md font-semibold ${
                   activeTab === 'copilot'
@@ -238,7 +238,7 @@ export const Header: React.FC<HeaderProps> = ({
                     : 'glass-pill-neutral'
                 }`}
               >
-                Timescale+AI
+                {isAIConnected ? 'Online' : 'Standby'}
               </span>
             </button>
 
@@ -354,7 +354,7 @@ export const Header: React.FC<HeaderProps> = ({
                 isAIConnected ? 'status-green' : 'status-yellow'
               }`}
             >
-              {isAIConnected ? 'AI :8001 Live' : 'AI :8001 Sync'}
+              {isAIConnected ? 'ML :8001 Live' : 'ML :8001 Sync'}
             </button>
           </div>
 
@@ -365,7 +365,7 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
               <div className="flex flex-col">
                 <span className="text-xs font-semibold text-[#111318]">Alex Rivera</span>
-                <span className="text-[10px] text-[#767D8C] font-mono">Lead DevSecOps</span>
+                <span className="text-[10px] text-[#767D8C] font-mono">Lead SRE / FinOps</span>
               </div>
             </div>
             <span className="text-[10px] font-mono font-semibold status-green px-2 py-0.5 rounded-md">
@@ -375,63 +375,64 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </aside>
 
-      {/* TOP STICKY GLASS CONTEXT BAR (ALWAYS VISIBLE WITH DYNAMIC TOTAL MONEY ON ALL TABS) */}
-      <header className="fixed top-0 left-64 right-0 h-16 bg-white/78 backdrop-blur-2xl border-b border-black/[0.07] z-40 px-6 flex items-center justify-between shadow-[0_1px_8px_rgba(17,19,24,0.02)]">
-        {/* Left: Screen Title & Regions */}
-        <div className="flex items-center gap-3 min-w-0">
-          <h1 className="text-[14px] font-semibold text-[#111318] tracking-tight truncate">
+      {/* TOP STICKY GLASS CONTEXT BAR (ZERO-COLLISION RESPONSIVE FLEX LAYOUT) */}
+      <header className="fixed top-0 left-64 right-0 h-16 bg-white/85 backdrop-blur-2xl border-b border-black/[0.07] z-40 px-4 sm:px-6 flex items-center justify-between gap-3 lg:gap-4 overflow-hidden shadow-[0_1px_8px_rgba(17,19,24,0.02)]">
+        {/* Left: Screen Title & Regions (Constrained & Truncated) */}
+        <div className="flex items-center gap-2 min-w-0 max-w-[180px] sm:max-w-[240px] md:max-w-[280px] lg:max-w-xs shrink">
+          <h1
+            className="text-[13px] sm:text-[14px] font-semibold text-[#111318] tracking-tight truncate"
+            title={screenTitle}
+          >
             {screenTitle}
           </h1>
-          <span className="hidden xl:inline-flex px-2.5 py-0.5 rounded-md glass-pill-neutral text-[10px] font-mono font-medium shrink-0">
-            in-mumbai-1 · in-bangalore-1 · in-noida-1
+          <span className="hidden 2xl:inline-flex px-2 py-0.5 rounded-md glass-pill-neutral text-[10px] font-mono font-medium shrink-0">
+            Noida · BLR · BOM
           </span>
         </div>
 
-        {/* Center: DYNAMIC TOTAL MONEY & COST CUTTING CLUSTER (ALWAYS VISIBLE ON ALL TABS) */}
-        <div className="flex items-center gap-2">
+        {/* Center: DYNAMIC TOTAL MONEY & COST CUTTING CLUSTER */}
+        <div className="flex items-center justify-center gap-1.5 sm:gap-2 shrink-0">
           {/* Spend */}
-          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl glass-well border border-black/[0.06] text-xs font-mono">
-            <span className="text-[10px] text-[#767D8C] uppercase tracking-wider">Spend:</span>
+          <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-well border border-black/[0.06] text-xs font-mono shrink-0">
+            <span className="text-[10px] text-[#767D8C] uppercase tracking-wider font-medium">Spend:</span>
             <span className="font-semibold text-[#111318]">{formatINR(currentSpendInr)}</span>
           </div>
 
-          {/* Dynamic Cost Cutting Pill with Live Green Pulse */}
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl status-green text-xs font-mono font-semibold shadow-xs">
-            <span className="w-2 h-2 rounded-full bg-[#236B52] animate-pulse" />
+          {/* Dynamic Cost Cutting Pill (Clean Minimal Indicator) */}
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg status-green text-xs font-mono font-semibold shrink-0 shadow-xs">
             <span className="text-[10px] uppercase tracking-wider opacity-90">Cost Cut:</span>
             <span>↓ {formatINR(acceptedSavingsInr)}</span>
             <span className="opacity-80">(-{acceptedSavingsPct}%)</span>
           </div>
 
           {/* Projected Run-Rate */}
-          <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl glass-well border border-black/[0.06] text-xs font-mono">
-            <span className="text-[10px] text-[#767D8C] uppercase tracking-wider">Projected:</span>
+          <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-well border border-black/[0.06] text-xs font-mono shrink-0">
+            <span className="text-[10px] text-[#767D8C] uppercase tracking-wider font-medium">Projected:</span>
             <span className="font-semibold text-[#111318]">{formatINR(projectedSpendInr)}</span>
           </div>
 
           {/* Unclaimed Pipeline */}
           {totalPotentialSavingsInr > acceptedSavingsInr && (
-            <div className="hidden 2xl:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl status-yellow text-[11px] font-mono font-medium">
+            <div className="hidden 2xl:flex items-center gap-1 px-2 py-1 rounded-lg status-yellow text-[11px] font-mono font-medium shrink-0">
               <span>₹{Math.round((totalPotentialSavingsInr - acceptedSavingsInr) / 1000)}k Unclaimed</span>
             </div>
           )}
         </div>
 
-        {/* Right: Actions & Chatbot Popup Toggle */}
-        <div className="flex items-center gap-2 shrink-0">
-          {/* AI Chatbot Popup Button */}
+        {/* Right: Actions & Copilot Popup Toggle */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* Copilot Popup Toggle */}
           {onToggleChatbotPopup && (
             <button
               type="button"
               onClick={onToggleChatbotPopup}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold font-mono flex items-center gap-1.5 transition-all cursor-pointer ${
+              className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold font-mono flex items-center gap-1.5 transition-all cursor-pointer ${
                 isChatbotPopupOpen
                   ? 'bg-[#111318] text-white shadow-xs'
                   : 'glass-well hover:bg-black/[0.08] text-[#111318] border border-black/[0.08]'
               }`}
             >
-              <span className="w-2 h-2 rounded-full bg-[#236B52]" />
-              <span>AI Copilot</span>
+              <span>Copilot</span>
             </button>
           )}
 
@@ -439,7 +440,7 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               type="button"
               onClick={onBulkAcceptLowRisk}
-              className="hidden lg:inline-flex px-3.5 py-1.5 rounded-xl status-green hover:bg-[#236B52]/18 text-xs font-semibold transition-all cursor-pointer"
+              className="hidden xl:inline-flex px-3 py-1.5 rounded-lg status-green hover:bg-[#236B52]/18 text-xs font-semibold transition-all cursor-pointer"
             >
               Approve Low-Risk ({pendingLowRiskCount})
             </button>
@@ -454,7 +455,7 @@ export const Header: React.FC<HeaderProps> = ({
                 onOpenExportModal();
               }
             }}
-            className="hidden sm:inline-flex px-3 py-1.5 rounded-xl glass-well hover:bg-black/[0.08] text-xs font-semibold text-[#111318] transition-all cursor-pointer border border-black/[0.08]"
+            className="hidden lg:inline-flex px-2.5 sm:px-3 py-1.5 rounded-lg glass-well hover:bg-black/[0.08] text-xs font-semibold text-[#111318] transition-all cursor-pointer border border-black/[0.08]"
           >
             Export CSV
           </button>
@@ -463,7 +464,7 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               type="button"
               onClick={onOpenExportModal}
-              className="px-3.5 py-1.5 rounded-xl bg-[#111318] hover:bg-[#232730] text-white text-xs font-semibold transition-all shadow-xs cursor-pointer"
+              className="px-3 py-1.5 rounded-lg bg-[#111318] hover:bg-[#232730] text-white text-xs font-semibold transition-all shadow-xs cursor-pointer"
             >
               Terraform &amp; CLI
             </button>

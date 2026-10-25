@@ -1234,10 +1234,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <div className="p-space-md rounded-xl glass-well mb-space-md space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-[#111318] font-headline-md text-[13px] font-semibold">
-                    Engine &amp; AI Telemetry Assessment
+                    Fleet Telemetry &amp; SRE Assessment
                   </span>
                   <span className="px-2 py-0.5 rounded-md glass-pill-neutral text-[10px] font-mono font-medium">
-                    {activeEng.provider || 'Go + AI :8001'}
+                    {activeEng.provider || 'FinSort Engine'}
                   </span>
                 </div>
                 <p className="font-body-sm text-body-sm text-[#4A505C] leading-relaxed">
@@ -1321,7 +1321,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <span className="px-2.5 py-0.5 rounded-md glass-pill-neutral font-label-caps text-label-caps uppercase font-semibold">
-                  AI Briefing
+                  Executive Briefing
                 </span>
                 <span className="font-headline-md text-headline-md text-[#111318] font-semibold">
                   Role-Based Telemetry Synthesis

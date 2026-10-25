@@ -466,11 +466,11 @@ export const ResourceDetailModal: React.FC<ResourceDetailModalProps> = ({
           <div className="rounded-xl glass-well p-5 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-black/[0.06] pb-3">
               <h3 className="text-sm font-bold text-[#111318]">
-                SRE &amp; AI Telemetry Audit (OpenRisk + 24h Quantile Forecast + Rollback Runbook)
+                SRE Telemetry &amp; Safety Audit (OpenRisk + 24h Quantile Forecast + Rollback Runbook)
               </h3>
               <div className="flex items-center gap-2 font-mono text-[11px]">
                 <span className="rounded-md bg-[#111318] text-white px-2.5 py-0.5 font-semibold">
-                  {eng.provider || 'Python-AI-Service (:8001)'}
+                  {eng.provider || 'FinSort Engine'}
                 </span>
                 <span className="rounded-md glass-pill-neutral px-2.5 py-0.5 font-semibold">
                   Confidence: {jev?.confidence_level || eng.confidence_level || 'HIGH'} ({jev?.confidence_pct ?? 96}%)

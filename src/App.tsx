@@ -428,16 +428,14 @@ export function App() {
         isLoading={isExportLoading}
       />
 
-      {/* Floating Action Pill for Quick AI Chatbot Popup */}
+      {/* Floating Action Pill for Quick FinSort Copilot Popup */}
       {!isChatbotPopupOpen && (
         <button
           type="button"
           onClick={() => setIsChatbotPopupOpen(true)}
-          className="fixed bottom-6 right-6 z-40 bg-[#111318] hover:bg-[#232730] text-white px-4 py-2.5 rounded-full shadow-2xl flex items-center gap-2.5 text-xs font-semibold font-mono border border-white/10 backdrop-blur-xl transition-all cursor-pointer hover:scale-105 active:scale-95 shadow-black/20"
+          className="fixed bottom-6 right-6 z-40 bg-[#111318] hover:bg-[#232730] text-white px-4 py-2.5 rounded-full shadow-2xl flex items-center gap-2 text-xs font-semibold font-mono border border-white/10 backdrop-blur-xl transition-all cursor-pointer hover:scale-105 active:scale-95 shadow-black/20"
         >
-          <span className="w-2.5 h-2.5 rounded-full bg-[#236B52] shadow-xs" />
-          <span>AI Copilot</span>
-          <span className="text-[10px] text-white/70 font-normal">Popup</span>
+          <span>FinSort Copilot</span>
         </button>
       )}
 

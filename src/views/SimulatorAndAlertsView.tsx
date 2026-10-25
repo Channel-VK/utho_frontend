@@ -177,7 +177,7 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
             Infrastructure Capacity &amp; Fleet Anomaly Control
           </h2>
           <p className="text-xs text-[#525866] mt-0.5">
-            Model dynamic shutdown cycles, adjust p95/p99 safety margins, and evaluate instant AI-correlated incident remediation paths.
+            Model dynamic shutdown cycles, adjust p95/p99 safety margins, and evaluate instant incident remediation paths.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -199,7 +199,7 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
         {/* LEFT COLUMN: WHAT-IF COST CALCULATOR (7 cols) */}
         <div className="xl:col-span-7 space-y-6">
           <div className="glass-card rounded-2xl p-6 space-y-6">
-            {/* Title & Scenario Name / NL AI Input */}
+            {/* Title & Scenario Name / Policy Input */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -211,7 +211,7 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
                   </p>
                 </div>
                 <span className="text-xs font-mono font-semibold px-2.5 py-1 glass-pill-neutral rounded-lg">
-                  Live Engine :8080 + :8001
+                  FinSort Engine
                 </span>
               </div>
 
@@ -227,7 +227,7 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
                   className="block text-[11px] font-bold uppercase tracking-wider text-[#525866]"
                   htmlFor="scenario-input"
                 >
-                  Scenario Label / Natural-Language AI Prompt
+                  Scenario Label / Policy Input
                 </label>
                 <div className="flex flex-col sm:flex-row gap-2">
                   <input
@@ -235,7 +235,7 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
                     type="text"
                     value={scenarioLabel}
                     onChange={(e) => setScenarioLabel(e.target.value)}
-                    placeholder="Enter scenario name or natural language query (e.g., Shut down dev VMs 8PM-8AM with 30% headroom)..."
+                    placeholder="Enter scenario name or policy query (e.g., Shut down dev VMs 8PM-8AM with 30% headroom)..."
                     className="flex-1 text-sm font-medium text-[#111318] bg-white/75 border border-black/[0.10] rounded-xl px-4 py-2.5 focus:bg-white focus:outline-none focus:ring-2 focus:ring-black/15 focus:border-[#111318] transition-all"
                   />
                   <button
@@ -243,18 +243,18 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
                     disabled={nlParsing}
                     className="px-4 py-2.5 rounded-xl bg-[#111318] hover:bg-[#272B33] text-white text-xs font-bold tracking-wide transition-colors shrink-0 disabled:opacity-50"
                   >
-                    {nlParsing ? 'Parsing AI...' : 'Parse & Simulate'}
+                    {nlParsing ? 'Simulating...' : 'Parse & Simulate'}
                   </button>
                 </div>
               </form>
 
-              {/* AI Parsed Feedback Banner */}
+              {/* Policy Parsed Feedback Banner */}
               {nlParsedResult && (
                 <div className="p-3.5 rounded-xl glass-well space-y-1.5">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span className="px-2 py-0.5 rounded bg-[#111318] text-white text-[10px] font-mono font-bold uppercase">
-                        {nlParsedResult.provider}
+                        FinSort Policy
                       </span>
                       {(nlParsedResult.parsed_tags || []).map((tag, idx) => (
                         <span
@@ -273,7 +273,7 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
               {/* Clickable Preset Buttons (Monochromatic Glass Pills) */}
               <div className="space-y-2 pt-1">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-[#525866] block">
-                  Fast Configuration Presets &amp; AI Scenarios
+                  Fast Configuration Presets &amp; Policy Scenarios
                 </span>
                 <div className="flex flex-wrap gap-2">
                   <button
@@ -345,7 +345,7 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
                       onClick={() => handleRunNLScenario(prompt)}
                       className="text-[11px] font-mono px-2.5 py-1 rounded-md glass-well hover:bg-black/[0.06] text-[#3F4450] hover:text-[#111318] transition-colors text-left"
                     >
-                      AI Prompt {i + 1}: &ldquo;{prompt.slice(0, 58)}...&rdquo;
+                      Preset {i + 1}: &ldquo;{prompt.slice(0, 58)}...&rdquo;
                     </button>
                   ))}
                 </div>
@@ -758,10 +758,10 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
                 <div className="p-3.5 glass-well rounded-xl space-y-1.5">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-[#525866]">
-                      Suggested Action &amp; AI Root-Cause
+                      Suggested Action &amp; Root-Cause Analysis
                     </span>
                     <span className="text-[10px] font-mono font-semibold text-[#3F4450]">
-                      {alert.ai_provider || 'Python AI :8001'}
+                      SRE Correlation
                     </span>
                   </div>
                   <div className="text-xs text-[#111318] leading-relaxed">
