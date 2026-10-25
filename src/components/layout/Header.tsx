@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatINR } from '../../utils/format';
 
 export type ActiveTab =
   | 'dashboard'
@@ -22,6 +23,14 @@ interface HeaderProps {
   pendingLowRiskCount?: number;
   onBulkAcceptLowRisk?: () => void;
   onOpenExportModal?: () => void;
+  onExportReport?: () => void;
+  currentSpendInr?: number;
+  acceptedSavingsInr?: number;
+  projectedSpendInr?: number;
+  acceptedSavingsPct?: number;
+  totalPotentialSavingsInr?: number;
+  onToggleChatbotPopup?: () => void;
+  isChatbotPopupOpen?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -38,6 +47,14 @@ export const Header: React.FC<HeaderProps> = ({
   pendingLowRiskCount = 0,
   onBulkAcceptLowRisk,
   onOpenExportModal,
+  onExportReport,
+  currentSpendInr = 683200,
+  acceptedSavingsInr = 150310,
+  projectedSpendInr = 532890,
+  acceptedSavingsPct = 22.0,
+  totalPotentialSavingsInr = 277230,
+  onToggleChatbotPopup,
+  isChatbotPopupOpen = false,
 }) => {
   const screenTitle =
     activeTab === 'dashboard'
@@ -99,8 +116,26 @@ export const Header: React.FC<HeaderProps> = ({
                   Engineering &amp; Finance
                 </span>
                 <span className="text-[10px] text-[#4A505C] font-mono font-semibold bg-white/80 px-1.5 py-0.5 rounded border border-black/[0.07]">
-                  INR
+                  INR (₹)
                 </span>
+              </div>
+
+              {/* Dynamic Live Cost Cutting Mini-Ticker in Sidebar */}
+              <div className="mt-2.5 pt-2.5 border-t border-black/[0.06] space-y-1">
+                <div className="flex items-center justify-between text-[10px] font-mono">
+                  <span className="text-[#767D8C]">Current:</span>
+                  <span className="font-semibold text-[#111318]">{formatINR(currentSpendInr)}</span>
+                </div>
+                <div className="flex items-center justify-between text-[10px] font-mono">
+                  <span className="text-[#236B52] font-semibold">Cost Cut:</span>
+                  <span className="font-semibold text-[#236B52] status-green px-1.5 py-0.2 rounded">
+                    -{formatINR(acceptedSavingsInr)} ({acceptedSavingsPct}%)
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-[10px] font-mono">
+                  <span className="text-[#767D8C]">Run-Rate:</span>
+                  <span className="font-semibold text-[#111318]">{formatINR(projectedSpendInr)}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -340,38 +375,97 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </aside>
 
-      {/* TOP STICKY GLASS CONTEXT BAR */}
-      <header className="fixed top-0 left-64 right-0 h-14 bg-white/72 backdrop-blur-2xl border-b border-black/[0.07] z-40 px-6 flex items-center justify-between">
+      {/* TOP STICKY GLASS CONTEXT BAR (ALWAYS VISIBLE WITH DYNAMIC TOTAL MONEY ON ALL TABS) */}
+      <header className="fixed top-0 left-64 right-0 h-16 bg-white/78 backdrop-blur-2xl border-b border-black/[0.07] z-40 px-6 flex items-center justify-between shadow-[0_1px_8px_rgba(17,19,24,0.02)]">
+        {/* Left: Screen Title & Regions */}
         <div className="flex items-center gap-3 min-w-0">
-          <h1 className="text-[15px] font-semibold text-[#111318] tracking-tight truncate">
+          <h1 className="text-[14px] font-semibold text-[#111318] tracking-tight truncate">
             {screenTitle}
           </h1>
-          <span className="px-2.5 py-0.5 rounded-md status-green text-[11px] font-mono font-semibold uppercase tracking-wider shrink-0">
-            Telemetry Synced
-          </span>
-          <span className="hidden md:inline-flex px-2.5 py-0.5 rounded-md glass-pill-neutral text-[11px] font-mono font-medium shrink-0">
+          <span className="hidden xl:inline-flex px-2.5 py-0.5 rounded-md glass-pill-neutral text-[10px] font-mono font-medium shrink-0">
             in-mumbai-1 · in-bangalore-1 · in-noida-1
           </span>
         </div>
 
+        {/* Center: DYNAMIC TOTAL MONEY & COST CUTTING CLUSTER (ALWAYS VISIBLE ON ALL TABS) */}
+        <div className="flex items-center gap-2">
+          {/* Spend */}
+          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl glass-well border border-black/[0.06] text-xs font-mono">
+            <span className="text-[10px] text-[#767D8C] uppercase tracking-wider">Spend:</span>
+            <span className="font-semibold text-[#111318]">{formatINR(currentSpendInr)}</span>
+          </div>
+
+          {/* Dynamic Cost Cutting Pill with Live Green Pulse */}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl status-green text-xs font-mono font-semibold shadow-xs">
+            <span className="w-2 h-2 rounded-full bg-[#236B52] animate-pulse" />
+            <span className="text-[10px] uppercase tracking-wider opacity-90">Cost Cut:</span>
+            <span>↓ {formatINR(acceptedSavingsInr)}</span>
+            <span className="opacity-80">(-{acceptedSavingsPct}%)</span>
+          </div>
+
+          {/* Projected Run-Rate */}
+          <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl glass-well border border-black/[0.06] text-xs font-mono">
+            <span className="text-[10px] text-[#767D8C] uppercase tracking-wider">Projected:</span>
+            <span className="font-semibold text-[#111318]">{formatINR(projectedSpendInr)}</span>
+          </div>
+
+          {/* Unclaimed Pipeline */}
+          {totalPotentialSavingsInr > acceptedSavingsInr && (
+            <div className="hidden 2xl:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl status-yellow text-[11px] font-mono font-medium">
+              <span>₹{Math.round((totalPotentialSavingsInr - acceptedSavingsInr) / 1000)}k Unclaimed</span>
+            </div>
+          )}
+        </div>
+
+        {/* Right: Actions & Chatbot Popup Toggle */}
         <div className="flex items-center gap-2 shrink-0">
+          {/* AI Chatbot Popup Button */}
+          {onToggleChatbotPopup && (
+            <button
+              type="button"
+              onClick={onToggleChatbotPopup}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold font-mono flex items-center gap-1.5 transition-all cursor-pointer ${
+                isChatbotPopupOpen
+                  ? 'bg-[#111318] text-white shadow-xs'
+                  : 'glass-well hover:bg-black/[0.08] text-[#111318] border border-black/[0.08]'
+              }`}
+            >
+              <span className="w-2 h-2 rounded-full bg-[#236B52]" />
+              <span>AI Copilot</span>
+            </button>
+          )}
+
           {pendingLowRiskCount > 0 && onBulkAcceptLowRisk && (
             <button
               type="button"
               onClick={onBulkAcceptLowRisk}
-              className="px-3.5 py-1.5 rounded-xl status-green hover:bg-[#236B52]/18 text-xs font-semibold transition-all"
+              className="hidden lg:inline-flex px-3.5 py-1.5 rounded-xl status-green hover:bg-[#236B52]/18 text-xs font-semibold transition-all cursor-pointer"
             >
               Approve Low-Risk ({pendingLowRiskCount})
             </button>
           )}
 
+          <button
+            type="button"
+            onClick={() => {
+              if (onExportReport) {
+                onExportReport();
+              } else if (onOpenExportModal) {
+                onOpenExportModal();
+              }
+            }}
+            className="hidden sm:inline-flex px-3 py-1.5 rounded-xl glass-well hover:bg-black/[0.08] text-xs font-semibold text-[#111318] transition-all cursor-pointer border border-black/[0.08]"
+          >
+            Export CSV
+          </button>
+
           {onOpenExportModal && (
             <button
               type="button"
               onClick={onOpenExportModal}
-              className="px-3.5 py-1.5 rounded-xl bg-[#111318] hover:bg-[#232730] text-white text-xs font-semibold transition-all shadow-xs"
+              className="px-3.5 py-1.5 rounded-xl bg-[#111318] hover:bg-[#232730] text-white text-xs font-semibold transition-all shadow-xs cursor-pointer"
             >
-              Export Terraform &amp; CLI
+              Terraform &amp; CLI
             </button>
           )}
         </div>

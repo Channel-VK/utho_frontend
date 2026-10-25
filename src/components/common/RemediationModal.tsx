@@ -33,19 +33,29 @@ export const RemediationModal: React.FC<RemediationModalProps> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleDownloadCsv = () => {
-    if (!exportData?.csv_report) return;
-    const blob = new Blob([exportData.csv_report], { type: 'text/csv;charset=utf-8;' });
+  const handleDownloadCurrentFile = () => {
+    if (!currentContent) return;
+    const isCsv = activeTab === 'csv';
+    const isTf = activeTab === 'terraform';
+    const mime = isCsv
+      ? 'text/csv;charset=utf-8;'
+      : isTf
+      ? 'text/plain;charset=utf-8;'
+      : 'application/x-sh;charset=utf-8;';
+    const ext = isCsv ? 'csv' : isTf ? 'tf' : 'sh';
+    const filename = `utho_finops_remediation_${activeTab}_${new Date().toISOString().split('T')[0]}.${ext}`;
+
+    const blob = new Blob([currentContent], { type: mime });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute(
-      'download',
-      `utho_finops_remediation_${new Date().toISOString().split('T')[0]}.csv`
-    );
+    link.setAttribute('download', filename);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    setTimeout(() => {
+      URL.revokeObjectURL(url);
+    }, 1000);
   };
 
   return (
@@ -111,15 +121,14 @@ export const RemediationModal: React.FC<RemediationModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            {activeTab === 'csv' && (
-              <button
-                type="button"
-                onClick={handleDownloadCsv}
-                className="rounded-lg status-green px-3.5 py-1.5 text-xs font-semibold transition-colors"
-              >
-                Download .csv
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={handleDownloadCurrentFile}
+              disabled={isLoading || !currentContent}
+              className="rounded-lg status-green px-3.5 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
+            >
+              <span>↓</span> Download .{activeTab === 'csv' ? 'csv' : activeTab === 'terraform' ? 'tf' : 'sh'}
+            </button>
 
             <button
               type="button"

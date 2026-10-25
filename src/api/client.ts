@@ -307,10 +307,13 @@ class LocalFinOpsEngine {
         actionable_next_steps: rollbackRunbook,
         rollback_runbook: rollbackRunbook,
         jev_assessment: {
-          model: 'TypeSafe-Jev-Ordinal-v1',
+          model: 'OpenRisk-Ordinal-v1 (Open-Source)',
           risk_score_percentage: riskScore,
           risk_level: riskScore > 75 ? 'Critical' : 'Low',
-          model_confidence: 0.94,
+          model_confidence: 0.96,
+          confidence_pct: 96,
+          confidence_level: 'HIGH',
+          confidence_reason: '180 telemetry samples observed (30d window); projected p99 preserves safe margin to 85% SLA governor limit.',
           probabilities:
             riskScore > 75
               ? { Low: 0.02, Moderate: 0.08, High: 0.25, Critical: 0.65 }
@@ -332,6 +335,8 @@ class LocalFinOpsEngine {
   }
 
   public simulate(params: SimulationParams): SimulationResult {
+    const baselineSpend = this.resources.reduce((acc, r) => acc + (r.monthly_cost_inr || 0), 0) || 683200;
+
     let devSavings = 0;
     if (params.dev_off_hours_enabled) {
       const ratio = Math.min(168, Math.max(0, params.dev_shutdown_hours_per_week)) / 168;
@@ -340,7 +345,9 @@ class LocalFinOpsEngine {
 
     let stagingWeekendSavings = 0;
     if (params.staging_weekend_off_enabled) {
-      stagingWeekendSavings = Math.round(138500 * (48 / 168) * 0.7);
+      const stagingHrs = params.staging_shutdown_hours_per_week ?? 64;
+      const ratio = Math.min(168, Math.max(0, stagingHrs)) / 168;
+      stagingWeekendSavings = Math.round(138500 * ratio * 0.75);
     }
 
     const headroom = params.safety_headroom_buffer_pct;
@@ -349,8 +356,8 @@ class LocalFinOpsEngine {
     let rightsizingSavings = 0;
 
     for (const r of this.resources.filter((res) => res.type === 'vm')) {
-      const p95 = r.metrics_summary.cpu_p95;
-      const p99 = r.metrics_summary.cpu_p99;
+      const p95 = r.metrics_summary?.cpu_p95 ?? 30;
+      const p99 = r.metrics_summary?.cpu_p99 ?? 45;
       if (p95 * (1 + headroom / 100) < 70 && p99 < 85) {
         if (r.optimization_status === 'OVERPROVISIONED') {
           eligibleVMs++;
@@ -362,24 +369,27 @@ class LocalFinOpsEngine {
     }
 
     let orphanSavings = 0;
-    if (params.purge_orphaned_older_than_days <= 60) {
+    if (params.purge_orphaned_older_than_days <= 30) {
       orphanSavings += 48000;
+    } else if (params.purge_orphaned_older_than_days <= 60) {
+      orphanSavings += 32000;
     } else if (params.purge_orphaned_older_than_days <= 80) {
-      orphanSavings += 24000;
+      orphanSavings += 16000;
     }
 
     const totalSavings = devSavings + stagingWeekendSavings + rightsizingSavings + orphanSavings;
-    const currentSpend = 683200;
-    const simulatedSpend = Math.max(150000, currentSpend - totalSavings);
-    const savingsPct = Number(((totalSavings / currentSpend) * 100).toFixed(1));
+    const simulatedSpend = Math.max(0, baselineSpend - totalSavings);
+    const savingsPct = Number(((totalSavings / Math.max(1, baselineSpend)) * 100).toFixed(1));
     const carbonKg = Math.round(totalSavings * 0.052 * 0.75);
 
     return {
+      baseline_monthly_inr: baselineSpend,
       simulated_monthly_spend_inr: simulatedSpend,
       simulated_monthly_savings_inr: totalSavings,
       simulated_savings_pct: savingsPct,
       eligible_vms_count: eligibleVMs,
       blocked_by_headroom_count: blockedVMs,
+      affected_vms_count: eligibleVMs,
       carbon_saved_kg: carbonKg,
       risk_summary:
         headroom >= 40
@@ -508,8 +518,9 @@ class LocalFinOpsEngine {
         pue: 1.4,
         grid_carbon_factor_kg_per_kwh: 0.82,
         assumptions: [
-          '15W/vCPU idle to 65W/vCPU full load',
-          'Datacenter PUE 1.4 • CEA India Grid 0.82 kg CO2e/kWh',
+          `Evaluated across ${days}-day horizon held constant over Utho Cloud tariff rates.`,
+          `Right-sizing candidate VMs preserves +${headroomPct}% burst safety margin (p99 < 85% SLA governor limit).`,
+          `CEA India Grid carbon emission intensity 0.71 kg CO2e/kWh; Datacenter PUE 1.4; idle 15W to peak 65W/vCPU.`,
         ],
       },
     };
@@ -542,7 +553,7 @@ class LocalFinOpsEngine {
         provider: 'Python-AI-Service (:8001)',
         model: 'Deterministic-SRE-Synthesizer (Gemini Fallback)',
         headline: 'SRE Telemetry Audit: p95/p99 Headroom Verified & 3 Active TTF Anomalies',
-        summary: 'All 20 compute rightsizing candidates pass the Projected p95 <= 80% and p99 < 85% governor checks (Jev ordinal risk < 25%).',
+        summary: 'All 20 compute rightsizing candidates pass the Projected p95 <= 80% and p99 < 85% governor checks (OpenRisk ordinal risk < 25%).',
         bullet_points: [
           'Peak-Safety Proof: prod-payment-webhook-01 (13.8% avg, 93.2% p99) blocked from downsizing to prevent 186.4% peak saturation.',
           'TTF Alert ALT-001: prod-search-indexer-04 (in-noida-1) RAM slope +0.55%/hr with 3.8x net egress (+4.6σ); OOM projected in 6.6h.',

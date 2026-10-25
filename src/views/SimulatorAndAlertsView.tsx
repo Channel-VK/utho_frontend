@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import type {
   SimulationParams,
   SimulationResult,
@@ -49,28 +49,63 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
   const [nlParsedResult, setNlParsedResult] = useState<NLScenarioResponse | null>(null);
   const [acknowledgedAlerts, setAcknowledgedAlerts] = useState<Record<string, boolean>>({});
   const [copiedAlertId, setCopiedAlertId] = useState<string | null>(null);
+  const [isSimulating, setIsSimulating] = useState<boolean>(false);
+  const [showComparisonModal, setShowComparisonModal] = useState<boolean>(false);
+  const [lastSimulatedTime, setLastSimulatedTime] = useState<string>('Live');
+
+  const getEffectiveParams = useCallback((): SimulationParams => ({
+    dev_off_hours_enabled: params.dev_off_hours_enabled && params.dev_shutdown_hours_per_week > 0,
+    dev_shutdown_hours_per_week: params.dev_off_hours_enabled ? params.dev_shutdown_hours_per_week : 0,
+    staging_weekend_off_enabled: params.staging_weekend_off_enabled && stagingHours > 0,
+    staging_shutdown_hours_per_week: params.staging_weekend_off_enabled ? stagingHours : 0,
+    safety_headroom_buffer_pct: bufferEnabled ? params.safety_headroom_buffer_pct : 50,
+    purge_orphaned_older_than_days: diskCleanupEnabled ? params.purge_orphaned_older_than_days : 90,
+  }), [params, stagingHours, bufferEnabled, diskCleanupEnabled]);
+
+  const handleManualSimulate = () => {
+    setIsSimulating(true);
+    const eff = getEffectiveParams();
+    onSimulate(eff)
+      .then((res) => {
+        setSimResult(res);
+        setLastSimulatedTime(new Date().toLocaleTimeString());
+      })
+      .catch((err) => console.error('Simulation failed:', err))
+      .finally(() => setIsSimulating(false));
+  };
 
   // Trigger live Go backend simulation whenever parameters change
   useEffect(() => {
     let cancelled = false;
-    const effectiveParams: SimulationParams = {
-      dev_off_hours_enabled: params.dev_off_hours_enabled && params.dev_shutdown_hours_per_week > 0,
-      dev_shutdown_hours_per_week: params.dev_off_hours_enabled ? params.dev_shutdown_hours_per_week : 0,
-      staging_weekend_off_enabled: params.staging_weekend_off_enabled && stagingHours > 0,
-      safety_headroom_buffer_pct: bufferEnabled ? params.safety_headroom_buffer_pct : 50,
-      purge_orphaned_older_than_days: diskCleanupEnabled ? params.purge_orphaned_older_than_days : 90,
-    };
+    let inFlight = true;
+    const effectiveParams = getEffectiveParams();
+
+    const timer = setTimeout(() => {
+      if (!cancelled && inFlight) {
+        setIsSimulating(true);
+      }
+    }, 50);
 
     onSimulate(effectiveParams)
       .then((res) => {
-        if (!cancelled) setSimResult(res);
+        if (!cancelled) {
+          setSimResult(res);
+          setLastSimulatedTime(new Date().toLocaleTimeString());
+        }
       })
-      .catch((err) => console.error('Simulation failed:', err));
+      .catch((err) => console.error('Simulation failed:', err))
+      .finally(() => {
+        inFlight = false;
+        clearTimeout(timer);
+        if (!cancelled) setIsSimulating(false);
+      });
 
     return () => {
       cancelled = true;
+      inFlight = false;
+      clearTimeout(timer);
     };
-  }, [params, stagingHours, bufferEnabled, diskCleanupEnabled, onSimulate]);
+  }, [getEffectiveParams, onSimulate]);
 
   const handleRunNLScenario = async (queryText?: string) => {
     const targetQuery = (queryText ?? scenarioLabel).trim();
@@ -119,9 +154,10 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
   };
 
   const baselineInr =
-    simResult && simResult.simulated_monthly_spend_inr + simResult.simulated_monthly_savings_inr > 0
+    simResult?.baseline_monthly_inr ||
+    (simResult && simResult.simulated_monthly_spend_inr + simResult.simulated_monthly_savings_inr > 0
       ? simResult.simulated_monthly_spend_inr + simResult.simulated_monthly_savings_inr
-      : baselineMonthlyInr;
+      : baselineMonthlyInr);
 
   const projectedInr = simResult?.simulated_monthly_spend_inr ?? Math.round(baselineInr * 0.72);
   const netSavingsInr = simResult?.simulated_monthly_savings_inr ?? Math.round(baselineInr - projectedInr);
@@ -589,20 +625,45 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
               )}
 
               {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row gap-3 pt-2">
+              <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
                 <button
                   type="button"
-                  onClick={handleResetDefaults}
-                  className="flex-1 py-2.5 px-4 text-xs font-bold text-[#111318] bg-white/85 border border-black/[0.12] hover:bg-white rounded-xl transition-all text-center"
+                  onClick={handleManualSimulate}
+                  disabled={isSimulating}
+                  className="flex-1 py-2.5 px-4 text-xs font-bold text-white bg-[#111318] hover:bg-[#272B33] rounded-xl transition-all text-center flex items-center justify-center gap-2 shadow-xs disabled:opacity-60 cursor-pointer"
+                >
+                  {isSimulating ? (
+                    <>
+                      <span className="w-3.5 h-3.5 rounded-full border-2 border-white border-t-transparent animate-spin inline-block" />
+                      Simulating...
+                    </>
+                  ) : (
+                    <>
+                      <span>▶</span> Simulate Scenario
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowComparisonModal(true)}
+                  className="flex-1 py-2.5 px-4 text-xs font-bold text-[#111318] bg-white/90 border border-black/[0.12] hover:bg-white rounded-xl transition-all text-center shadow-2xs cursor-pointer"
                 >
                   Compare with Baseline
                 </button>
                 <button
                   type="button"
-                  onClick={onOpenExportModal}
-                  className="flex-1 py-2.5 px-4 text-xs font-bold text-white bg-[#111318] hover:bg-[#272B33] rounded-xl transition-all text-center"
+                  onClick={handleResetDefaults}
+                  className="py-2.5 px-3 text-xs font-medium text-[#525866] hover:text-[#111318] bg-white/70 border border-black/[0.08] hover:bg-white rounded-xl transition-all text-center cursor-pointer"
+                  title="Reset to default policies"
                 >
-                  Generate Terraform Plan
+                  Reset Defaults
+                </button>
+                <button
+                  type="button"
+                  onClick={onOpenExportModal}
+                  className="py-2.5 px-3.5 text-xs font-semibold text-[#1D5C46] bg-[#E8F3EE] hover:bg-[#D5EAE0] border border-[#1D5C46]/20 rounded-xl transition-all text-center cursor-pointer"
+                >
+                  Terraform Plan
                 </button>
               </div>
             </div>
@@ -768,6 +829,206 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
           })}
         </div>
       </div>
+
+      {/* INTERACTIVE BASELINE COMPARISON MODAL */}
+      {showComparisonModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#111318]/40 backdrop-blur-md p-4">
+          <div className="relative flex max-h-[90vh] w-full max-w-4xl flex-col rounded-2xl glass-card shadow-2xl overflow-hidden bg-white/95">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-black/[0.08] px-6 py-4 bg-white/80">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-base font-bold text-[#111318]">
+                    Baseline vs. What-If Scenario Comparison
+                  </h2>
+                  <span className="px-2 py-0.5 rounded-md status-green text-[10px] font-mono font-bold uppercase">
+                    Interactive Audit
+                  </span>
+                </div>
+                <p className="text-xs text-[#525866] mt-0.5">
+                  Side-by-side financial, operational SLA, and carbon audit for &ldquo;{scenarioLabel}&rdquo;
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowComparisonModal(false)}
+                className="rounded-lg glass-well hover:bg-black/[0.08] px-3 py-1.5 text-xs font-semibold text-[#111318] transition-colors cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              {/* Financial KPI Trio */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="p-4 rounded-xl glass-well">
+                  <span className="text-[11px] uppercase tracking-wider font-semibold text-[#767D8C] block">
+                    Current Monthly Baseline
+                  </span>
+                  <span className="text-xl font-bold font-mono text-[#111318] mt-1 block">
+                    {formatINR(baselineInr)}
+                  </span>
+                  <span className="text-[10px] text-[#767D8C] mt-0.5 block">
+                    100% full unmanaged baseline run-rate
+                  </span>
+                </div>
+
+                <div className="p-4 rounded-xl glass-well">
+                  <span className="text-[11px] uppercase tracking-wider font-semibold text-[#767D8C] block">
+                    Simulated Monthly Spend
+                  </span>
+                  <span className="text-xl font-bold font-mono text-[#111318] mt-1 block">
+                    {formatINR(projectedInr)}
+                  </span>
+                  <span className="text-[10px] text-[#1D5C46] font-medium mt-0.5 block">
+                    Post-scenario projected bill
+                  </span>
+                </div>
+
+                <div className="p-4 rounded-xl status-green">
+                  <span className="text-[11px] uppercase tracking-wider font-semibold opacity-85 block">
+                    Net Projected Savings
+                  </span>
+                  <span className="text-xl font-extrabold font-mono mt-1 block">
+                    -{formatINR(netSavingsInr)} /mo
+                  </span>
+                  <span className="text-[10px] font-semibold opacity-90 mt-0.5 block">
+                    {netSavingsPct}% spend reduction
+                  </span>
+                </div>
+              </div>
+
+              {/* Categorical Comparison Table */}
+              <div className="rounded-xl border border-black/[0.08] overflow-hidden">
+                <div className="bg-black/[0.03] px-4 py-2.5 border-b border-black/[0.06] flex items-center justify-between">
+                  <span className="text-xs font-bold text-[#111318] uppercase tracking-wider">
+                    Policy-by-Policy Impact Breakdown
+                  </span>
+                  <span className="text-[10px] font-mono text-[#767D8C]">
+                    Calculated live at {lastSimulatedTime}
+                  </span>
+                </div>
+                <div className="divide-y divide-black/[0.05] text-xs font-mono">
+                  <div className="p-3.5 flex items-center justify-between bg-white">
+                    <div>
+                      <div className="font-bold text-[#111318]">Weeknight Dev Scheduling</div>
+                      <div className="text-[11px] text-[#767D8C]">
+                        {params.dev_off_hours_enabled ? `${params.dev_shutdown_hours_per_week} hrs/week off-peak` : 'Disabled (Continuous)'}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-bold text-[#1D5C46]">
+                        +{formatINR(simResult?.breakdown?.dev_scheduling_savings_inr ?? 0)}/mo
+                      </div>
+                      <div className="text-[10px] text-[#767D8C]">
+                        {params.dev_off_hours_enabled ? 'Active schedule' : '0% savings'}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 flex items-center justify-between bg-white">
+                    <div>
+                      <div className="font-bold text-[#111318]">Weekend Staging Pauses</div>
+                      <div className="text-[11px] text-[#767D8C]">
+                        {params.staging_weekend_off_enabled ? `${stagingHours} hrs/week freeze` : 'Disabled (Continuous)'}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-bold text-[#1D5C46]">
+                        +{formatINR(simResult?.breakdown?.staging_weekend_savings_inr ?? 0)}/mo
+                      </div>
+                      <div className="text-[10px] text-[#767D8C]">
+                        {params.staging_weekend_off_enabled ? 'Active schedule' : '0% savings'}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 flex items-center justify-between bg-white">
+                    <div>
+                      <div className="font-bold text-[#111318]">Peak Headroom Safety Buffer</div>
+                      <div className="text-[11px] text-[#767D8C]">
+                        {bufferEnabled ? `+${params.safety_headroom_buffer_pct}% buffer (${simResult?.blocked_by_headroom_count ?? 0} bursty VMs protected)` : 'Disabled (0% buffer)'}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-bold text-[#1D5C46]">
+                        +{formatINR(simResult?.breakdown?.rightsizing_savings_inr ?? 0)}/mo
+                      </div>
+                      <div className="text-[10px] text-[#767D8C]">
+                        {simResult?.eligible_vms_count ?? 0} VMs rightsized
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 flex items-center justify-between bg-white">
+                    <div>
+                      <div className="font-bold text-[#111318]">Unused Disk &amp; Static IP Cleanup</div>
+                      <div className="text-[11px] text-[#767D8C]">
+                        {diskCleanupEnabled ? `Purge unattached assets idle >${params.purge_orphaned_older_than_days} days` : 'Disabled'}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-bold text-[#1D5C46]">
+                        +{formatINR(simResult?.breakdown?.orphan_purge_savings_inr ?? 0)}/mo
+                      </div>
+                      <div className="text-[10px] text-[#767D8C]">
+                        {diskCleanupEnabled ? 'Reclaimed storage & IP leases' : '0% savings'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Sustainability Impact Comparison */}
+              <div className="p-4 rounded-xl bg-white border border-black/[0.08] flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
+                <div>
+                  <span className="font-bold text-[#111318] block">Environmental Impact (Scope 2 Reduction)</span>
+                  <span className="text-[#525866]">
+                    Baseline energy waste: 0 kWh saved → Simulated: <strong>{kwhSaved.toLocaleString('en-IN')} kWh/mo saved</strong> (~{co2MetricTons} tons CO2e)
+                  </span>
+                </div>
+                <span className="px-2.5 py-1 rounded status-green text-[10px] font-bold uppercase">
+                  GreenOps Grade A+
+                </span>
+              </div>
+
+              {/* Governor Audit Note */}
+              {simResult?.risk_summary && (
+                <div className="p-3.5 rounded-xl bg-black/[0.03] border border-black/[0.06] text-xs font-mono text-[#3F4450]">
+                  <strong>Mathematical Governor Audit:</strong> {simResult.risk_summary}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-between border-t border-black/[0.08] px-6 py-3.5 bg-white/80">
+              <span className="text-xs text-[#767D8C] font-mono">
+                Click &ldquo;Simulate Scenario&rdquo; anytime to re-evaluate with current parameters.
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowComparisonModal(false)}
+                  className="rounded-xl glass-well hover:bg-black/[0.08] px-4 py-2 text-xs font-semibold text-[#111318] transition-colors cursor-pointer"
+                >
+                  Close Comparison
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowComparisonModal(false);
+                    if (onOpenExportModal) onOpenExportModal();
+                  }}
+                  className="rounded-xl bg-[#111318] hover:bg-[#272B33] px-4 py-2 text-xs font-bold text-white transition-colors cursor-pointer"
+                >
+                  Apply &amp; Generate Terraform
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

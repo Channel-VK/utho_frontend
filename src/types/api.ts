@@ -111,11 +111,16 @@ export interface JevAssessment {
   risk_score_percentage: number;
   risk_level?: string;
   model_confidence: number | string;
+  confidence_pct?: number;
+  confidence_level?: string;
+  confidence_reason?: string;
   probabilities?: Record<string, number>;
   probability_distribution?: Record<string, number>;
   explanation?: string;
   decision_policy?: string;
 }
+
+export type OpenRiskAssessment = JevAssessment;
 
 export interface QuantileForecastPoint {
   timestamp?: string;
@@ -255,16 +260,19 @@ export interface SimulationParams {
   dev_off_hours_enabled: boolean;
   dev_shutdown_hours_per_week: number;
   staging_weekend_off_enabled: boolean;
+  staging_shutdown_hours_per_week?: number;
   safety_headroom_buffer_pct: number;
   purge_orphaned_older_than_days: number;
 }
 
 export interface SimulationResult {
+  baseline_monthly_inr?: number;
   simulated_monthly_spend_inr: number;
   simulated_monthly_savings_inr: number;
   simulated_savings_pct: number;
   eligible_vms_count: number;
   blocked_by_headroom_count: number;
+  affected_vms_count?: number;
   carbon_saved_kg: number;
   risk_summary: string;
   breakdown?: {
@@ -273,6 +281,24 @@ export interface SimulationResult {
     rightsizing_savings_inr?: number;
     orphan_purge_savings_inr?: number;
   };
+  newly_eligible_resources?: Array<{
+    resource_id: string;
+    resource_name: string;
+    current_plan: string;
+    proposed_plan: string;
+    p95_peak: number;
+    p99_peak: number;
+    reason: string;
+  }>;
+  newly_ineligible_resources?: Array<{
+    resource_id: string;
+    resource_name: string;
+    current_plan: string;
+    proposed_plan: string;
+    p95_peak: number;
+    p99_peak: number;
+    reason: string;
+  }>;
 }
 
 export interface NLScenarioResponse {
