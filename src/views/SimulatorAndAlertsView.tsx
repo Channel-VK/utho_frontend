@@ -16,12 +16,6 @@ interface SimulatorAndAlertsViewProps {
   onOpenExportModal?: () => void;
 }
 
-const NL_EXAMPLE_PROMPTS = [
-  'What if we shut down all dev VMs in Bangalore from 8 PM to 8 AM and keep 30% peak headroom?',
-  'Aggressive rightsizing with 15% peak buffer, weekend staging halt, and purge orphans older than 15 days',
-  'Ultra-conservative 40% peak safety buffer for prod SLA protection with standard dev off-hours',
-];
-
 export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
   alerts,
   baselineMonthlyInr = 683200,
@@ -313,86 +307,7 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
                 </div>
               )}
 
-              {/* Clickable Preset Buttons (Monochromatic Glass Pills) */}
-              <div className="space-y-2 pt-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#525866] block">
-                  Fast Configuration Presets &amp; Policy Scenarios
-                </span>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setScenarioLabel('Weekend Shutdown & Standard Dev Schedule');
-                      setStagingHours(96);
-                      setParams((p) => ({
-                        ...p,
-                        dev_off_hours_enabled: true,
-                        dev_shutdown_hours_per_week: 90,
-                        staging_weekend_off_enabled: true,
-                      }));
-                    }}
-                    className="text-xs font-semibold px-3 py-1.5 rounded-lg glass-pill-neutral hover:bg-black/[0.08] hover:text-[#111318] transition-colors"
-                  >
-                    Weekend Shutdown
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setScenarioLabel('Aggressive Dev & QA Off-Hours Pause');
-                      setParams((p) => ({
-                        ...p,
-                        dev_off_hours_enabled: true,
-                        dev_shutdown_hours_per_week: 132,
-                      }));
-                    }}
-                    className="text-xs font-semibold px-3 py-1.5 rounded-lg glass-pill-neutral hover:bg-black/[0.08] hover:text-[#111318] transition-colors"
-                  >
-                    Aggressive Dev Pause
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setScenarioLabel('Max Headroom Buffer Trim (15% Peak Buffer)');
-                      setBufferEnabled(true);
-                      setParams((p) => ({
-                        ...p,
-                        safety_headroom_buffer_pct: 15,
-                      }));
-                    }}
-                    className="text-xs font-semibold px-3 py-1.5 rounded-lg glass-pill-neutral hover:bg-black/[0.08] hover:text-[#111318] transition-colors"
-                  >
-                    Max Buffer Trim
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setScenarioLabel('Storage & Orphaned IP Deep Clean (>7 Days)');
-                      setDiskCleanupEnabled(true);
-                      setParams((p) => ({
-                        ...p,
-                        purge_orphaned_older_than_days: 7,
-                      }));
-                    }}
-                    className="text-xs font-semibold px-3 py-1.5 rounded-lg glass-pill-neutral hover:bg-black/[0.08] hover:text-[#111318] transition-colors"
-                  >
-                    Storage Deep Clean
-                  </button>
-                </div>
-
-                {/* 1-Click Natural Language Prompts */}
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {NL_EXAMPLE_PROMPTS.map((prompt, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => handleRunNLScenario(prompt)}
-                      className="text-[11px] font-sans px-2.5 py-1 rounded-md glass-well hover:bg-black/[0.06] text-[#3F4450] hover:text-[#111318] transition-colors text-left"
-                    >
-                      Preset {i + 1}: &ldquo;{prompt.slice(0, 58)}...&rdquo;
-                    </button>
-                  ))}
-                </div>
-              </div>
+              {/* Presets removed per minimal UI requirements */}
             </div>
 
             {/* 4 GLASSMORPHIC SLIDERS & TOGGLES */}

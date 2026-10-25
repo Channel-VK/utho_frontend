@@ -70,7 +70,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   useEffect(() => {
     let cancelled = false;
-    apiClient.getAIBriefing(briefingRole).then((res) => {
+    apiClient.getAIBriefing(briefingRole).then((res: AIBriefingResponse) => {
       if (!cancelled) setBriefing(res);
     });
     return () => {
