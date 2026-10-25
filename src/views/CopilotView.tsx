@@ -232,7 +232,7 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
               </span>
             </div>
             <p className="text-xs text-[#767D8C]">
-              Continuous reasoning over 85 Utho resources, p95/p99 telemetry, peak safety governors, and ₹ INR pricing.
+              Powered by gemini-3.8-flash with full live context: all 85 VMs, Block SSDs &amp; IPs, 30/60/90d TFT forecasts, approved &amp; pending rightsizing, and ₹ INR savings.
             </p>
           </div>
 

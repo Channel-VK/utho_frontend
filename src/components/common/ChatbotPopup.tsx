@@ -245,7 +245,7 @@ export const ChatbotPopup: React.FC<ChatbotPopupProps> = ({
               </span>
             </div>
             <span className="text-[10px] text-[#767D8C] font-sans">
-              85 Utho Nodes (Noida · BLR · Mumbai) · Peak Governor p99 &lt; 85%
+              gemini-3.8-flash · Full Context (85 VMs/Storage/IPs · TFT · Approved/Pending)
             </span>
           </div>
         </div>
