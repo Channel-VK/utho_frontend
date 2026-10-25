@@ -4,7 +4,7 @@
 
 ---
 
-## 🏛️ 3-Repository System Architecture
+## 3-Repository System Architecture
 
 | Repository | Tech Stack | Port | Responsibility |
 | :--- | :--- | :--- | :--- |
@@ -14,7 +14,7 @@
 
 ---
 
-## ⚡ Full-Stack Setup Instructions (All 3 Repos)
+## Full-Stack Setup Instructions (All 3 Repos)
 
 ### 1. Start Python AI & Forecasting Service (`utho_ai_app` — Port `:8001`)
 ```bash
@@ -43,7 +43,7 @@ npm run dev
 
 ---
 
-## 🖥️ Key UI Capabilities for Jury Evaluation
+## Key UI Capabilities for Jury Evaluation
 
 1. **Dashboard & Resource Drill-Down (`src/views/DashboardView.tsx`, `ResourceDetailModal.tsx`)**
    - Filter 85 Utho Cloud resources by **Region** (`in-mumbai-1`, `in-noida-1`, `in-bangalore-1`), **Environment** (`prod`, `staging`, `dev`), **Team**, and **Status**.
@@ -64,7 +64,7 @@ npm run dev
 
 ---
 
-## 🧪 Verification & Build Commands
+## Verification & Build Commands
 
 ```bash
 # Lint (Oxlint — 0 warnings, 0 errors)
@@ -74,7 +74,7 @@ npm run lint
 npm run build
 ```
 
-## 📁 Directory Structure
+## Directory Structure
 
 ```text
 utho_frontend/
