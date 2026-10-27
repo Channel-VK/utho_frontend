@@ -263,6 +263,8 @@ export interface SimulationParams {
   staging_shutdown_hours_per_week?: number;
   safety_headroom_buffer_pct: number;
   purge_orphaned_older_than_days: number;
+  target_region?: string;
+  target_environment?: string;
 }
 
 export interface SimulationResult {

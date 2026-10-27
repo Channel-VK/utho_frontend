@@ -311,7 +311,7 @@ export const ChatbotPopup: React.FC<ChatbotPopupProps> = ({
               >
                 <p className="whitespace-pre-wrap">{typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content, null, 2)}</p>
 
-                {msg.data && typeof msg.data === 'object' && (
+                {msg.data && typeof msg.data === 'object' && Object.keys(msg.data).length > 0 && msg.tool !== 'conversational_greeting' && (
                   <div className="mt-2.5 pt-2.5 border-t border-black/[0.08] space-y-2">
                     <div className="text-[9px] uppercase font-sans font-semibold text-[#767D8C]">
                       Grounded Telemetry

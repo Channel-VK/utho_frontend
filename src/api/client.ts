@@ -34,7 +34,7 @@ async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
 }
 
 export const apiClient = {
-  async checkConnection(): Promise<{ isConnected: boolean; goConnected: boolean; aiConnected: boolean }> {
+  async checkConnection(): Promise<{ isConnected: boolean; goConnected: boolean; aiConnected: boolean; llmConfigured?: boolean; googleModel?: string }> {
     try {
       const res = await fetch(`${BASE_URL}/health`, { signal: AbortSignal.timeout(3000) });
       if (!res.ok) return { isConnected: false, goConnected: false, aiConnected: false };
@@ -43,13 +43,28 @@ export const apiClient = {
         isConnected: true,
         goConnected: true,
         aiConnected: Boolean(data.ai_engine_connected ?? data.aiConnected ?? true),
+        llmConfigured: Boolean(data.llm_configured),
+        googleModel: data.google_model,
       };
     } catch {
       return { isConnected: false, goConnected: false, aiConnected: false };
     }
   },
 
-  async checkServiceStatus(): Promise<{ isConnected: boolean; goConnected: boolean; aiConnected: boolean }> {
+  async checkLLMHealth(): Promise<{
+    status: string;
+    api_key_configured: boolean;
+    masked_key?: string;
+    live_call_success: boolean;
+    active_model?: string;
+    sample_response?: string;
+    latency_ms?: number;
+    error?: string;
+  }> {
+    return fetchJSON(`${BASE_URL}/ai/llm-health`);
+  },
+
+  async checkServiceStatus(): Promise<{ isConnected: boolean; goConnected: boolean; aiConnected: boolean; llmConfigured?: boolean; googleModel?: string }> {
     return this.checkConnection();
   },
 

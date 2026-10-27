@@ -321,7 +321,7 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
                   <p className="whitespace-pre-wrap">{typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content, null, 2)}</p>
 
                   {/* Structured Tool Data Card */}
-                  {msg.data && typeof msg.data === 'object' && (
+                  {msg.data && typeof msg.data === 'object' && Object.keys(msg.data).length > 0 && msg.tool !== 'conversational_greeting' && (
                     <div className="mt-3 pt-3 border-t border-black/[0.08] space-y-2">
                       <div className="text-[10px] uppercase tracking-wider font-semibold text-[#767D8C]">
                         Grounded Telemetry Payload

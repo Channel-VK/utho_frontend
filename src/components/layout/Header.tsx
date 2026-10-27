@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { formatINR } from '../../utils/format';
+import { apiClient } from '../../api/client';
 
 export type ActiveTab =
   | 'dashboard'
@@ -71,6 +72,53 @@ export const Header: React.FC<HeaderProps> = ({
     activeResourceCategory !== 'STORAGE';
   const isComputeActive = activeTab === 'dashboard' && activeResourceCategory === 'COMPUTE';
   const isStorageActive = activeTab === 'dashboard' && activeResourceCategory === 'STORAGE';
+
+  const [llmHealth, setLlmHealth] = useState<{
+    status: string;
+    api_key_configured: boolean;
+    masked_key?: string;
+    live_call_success: boolean;
+    active_model?: string;
+    sample_response?: string;
+    latency_ms?: number;
+    error?: string;
+  } | null>(null);
+  const [isCheckingLLM, setIsCheckingLLM] = useState<boolean>(false);
+  const [showLLMDropdown, setShowLLMDropdown] = useState<boolean>(false);
+  const llmDropdownRef = useRef<HTMLDivElement>(null);
+
+  const fetchLLMHealth = async () => {
+    setIsCheckingLLM(true);
+    try {
+      const health = await apiClient.checkLLMHealth();
+      setLlmHealth(health);
+    } catch (err: unknown) {
+      setLlmHealth({
+        status: 'error',
+        api_key_configured: false,
+        live_call_success: false,
+        error: err instanceof Error ? err.message : 'Failed to ping LLM endpoint',
+      });
+    } finally {
+      setIsCheckingLLM(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLLMHealth();
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (llmDropdownRef.current && !llmDropdownRef.current.contains(e.target as Node)) {
+        setShowLLMDropdown(false);
+      }
+    };
+    if (showLLMDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showLLMDropdown]);
 
   return (
     <>
@@ -349,6 +397,105 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Right: Actions & Copilot Popup Toggle */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* Interactive LLM Telemetry Pill & Dropdown */}
+          <div className="relative" ref={llmDropdownRef}>
+            <button
+              type="button"
+              onClick={() => setShowLLMDropdown((prev) => !prev)}
+              className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold font-sans flex items-center gap-1.5 transition-all cursor-pointer border ${
+                llmHealth?.live_call_success
+                  ? 'bg-white hover:bg-black/[0.04] text-[#111318] border-black/[0.08]'
+                  : 'bg-[#FFF7ED] text-[#C2410C] border-[#FDBA74]'
+              }`}
+              title="Gemini LLM Deployment Health & Telemetry"
+            >
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  isCheckingLLM
+                    ? 'bg-amber-400 animate-pulse'
+                    : llmHealth?.live_call_success
+                    ? 'bg-[#236B52]'
+                    : 'bg-red-500'
+                }`}
+              />
+              <span className="hidden sm:inline">
+                {isCheckingLLM
+                  ? 'Checking LLM...'
+                  : llmHealth?.active_model
+                  ? llmHealth.active_model
+                  : 'Gemini LLM'}
+              </span>
+              <span className="sm:hidden">LLM</span>
+            </button>
+
+            {showLLMDropdown && (
+              <div className="absolute right-0 mt-2 w-72 rounded-xl bg-white/95 backdrop-blur-2xl border border-black/[0.1] shadow-xl p-3.5 z-50 text-xs font-sans space-y-2.5">
+                <div className="flex items-center justify-between border-b border-black/[0.06] pb-2">
+                  <div className="font-bold text-[#111318]">Gemini Telemetry</div>
+                  <span
+                    className={`text-[10px] px-2 py-0.5 rounded font-semibold ${
+                      llmHealth?.live_call_success
+                        ? 'status-green'
+                        : 'status-red'
+                    }`}
+                  >
+                    {llmHealth?.live_call_success ? 'Online' : 'Degraded / Offline'}
+                  </span>
+                </div>
+
+                <div className="space-y-1.5 text-[11px]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#767D8C]">Active Model:</span>
+                    <span className="font-semibold text-[#111318] font-mono">
+                      {llmHealth?.active_model || 'None'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#767D8C]">API Key Status:</span>
+                    <span className="font-medium text-[#111318]">
+                      {llmHealth?.api_key_configured ? 'Configured (Live)' : 'Not Set'}
+                    </span>
+                  </div>
+                  {llmHealth?.masked_key && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#767D8C]">Key Mask:</span>
+                      <span className="font-mono text-[#4A505C]">{llmHealth.masked_key}</span>
+                    </div>
+                  )}
+                  {typeof llmHealth?.latency_ms === 'number' && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#767D8C]">Latency:</span>
+                      <span className="font-semibold text-[#236B52] tabular-nums">
+                        {llmHealth.latency_ms.toFixed(0)} ms
+                      </span>
+                    </div>
+                  )}
+                  {llmHealth?.sample_response && (
+                    <div className="pt-1 border-t border-black/[0.06] text-[10px] text-[#767D8C]">
+                      Diagnostic Echo: <span className="font-mono text-[#111318]">{llmHealth.sample_response}</span>
+                    </div>
+                  )}
+                  {llmHealth?.error && (
+                    <div className="pt-1 text-[10px] text-red-600">
+                      {llmHealth.error}
+                    </div>
+                  )}
+                </div>
+
+                <div className="pt-2 border-t border-black/[0.06] flex items-center justify-between">
+                  <span className="text-[10px] text-[#767D8C]">Deployment Live Check</span>
+                  <button
+                    type="button"
+                    onClick={() => fetchLLMHealth()}
+                    disabled={isCheckingLLM}
+                    className="px-2.5 py-1 rounded bg-[#111318] text-white text-[10px] font-semibold hover:bg-[#232730] transition-colors disabled:opacity-50 cursor-pointer"
+                  >
+                    {isCheckingLLM ? 'Pinging...' : 'Ping LLM'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
           {/* Copilot Popup Toggle */}
           {onToggleChatbotPopup && (
             <button

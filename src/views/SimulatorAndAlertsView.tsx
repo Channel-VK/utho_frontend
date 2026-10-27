@@ -58,6 +58,8 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
     staging_shutdown_hours_per_week: params.staging_weekend_off_enabled ? stagingHours : 0,
     safety_headroom_buffer_pct: bufferEnabled ? params.safety_headroom_buffer_pct : 50,
     purge_orphaned_older_than_days: diskCleanupEnabled ? params.purge_orphaned_older_than_days : 90,
+    target_region: params.target_region,
+    target_environment: params.target_environment,
   }), [params, stagingHours, bufferEnabled, diskCleanupEnabled]);
 
   const handleManualSimulate = () => {
@@ -181,6 +183,8 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
       staging_weekend_off_enabled: true,
       safety_headroom_buffer_pct: 25,
       purge_orphaned_older_than_days: 14,
+      target_region: undefined,
+      target_environment: undefined,
     });
   };
 
