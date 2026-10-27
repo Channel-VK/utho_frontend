@@ -247,8 +247,9 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
                     Adjust fleet operational policies or describe a scenario in plain English to inspect projected INR runway gains.
                   </p>
                 </div>
-                <span className="text-xs font-sans font-semibold px-2.5 py-1 glass-pill-neutral rounded-lg">
-                  FinSort Engine
+                <span className="text-xs font-sans font-semibold px-2.5 py-1 glass-pill-neutral rounded-lg flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  Gemini LLM Connected
                 </span>
               </div>
 
@@ -291,7 +292,7 @@ export const SimulatorAndAlertsView: React.FC<SimulatorAndAlertsViewProps> = ({
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span className="px-2 py-0.5 rounded bg-[#111318] text-white text-[10px] font-sans font-bold uppercase">
-                        FinSort Policy
+                        {nlParsedResult.provider || 'FinSort Policy'}
                       </span>
                       {(nlParsedResult.parsed_tags || []).map((tag, idx) => (
                         <span
