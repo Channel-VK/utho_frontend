@@ -83,7 +83,7 @@ export const Header: React.FC<HeaderProps> = ({
     latency_ms?: number;
     error?: string;
   } | null>(null);
-  const [isCheckingLLM, setIsCheckingLLM] = useState<boolean>(false);
+  const [isCheckingLLM, setIsCheckingLLM] = useState<boolean>(true);
   const [showLLMDropdown, setShowLLMDropdown] = useState<boolean>(false);
   const llmDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -105,7 +105,28 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   useEffect(() => {
-    fetchLLMHealth();
+    let mounted = true;
+    apiClient
+      .checkLLMHealth()
+      .then((health) => {
+        if (mounted) setLlmHealth(health);
+      })
+      .catch((err: unknown) => {
+        if (mounted) {
+          setLlmHealth({
+            status: 'error',
+            api_key_configured: false,
+            live_call_success: false,
+            error: err instanceof Error ? err.message : 'Failed to ping LLM endpoint',
+          });
+        }
+      })
+      .finally(() => {
+        if (mounted) setIsCheckingLLM(false);
+      });
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -352,11 +373,11 @@ export const Header: React.FC<HeaderProps> = ({
       </aside>
 
       {/* TOP STICKY GLASS CONTEXT BAR (ZERO-COLLISION RESPONSIVE FLEX LAYOUT) */}
-      <header className="fixed top-0 left-64 right-0 h-16 bg-white/85 backdrop-blur-2xl border-b border-black/[0.07] z-40 px-4 sm:px-6 flex items-center justify-between gap-3 lg:gap-4 overflow-hidden shadow-[0_1px_8px_rgba(17,19,24,0.02)]">
-        {/* Left: Screen Title & Regions (Constrained & Truncated) */}
-        <div className="flex items-center gap-2 min-w-0 max-w-[180px] sm:max-w-[240px] md:max-w-[280px] lg:max-w-xs shrink">
+      <header className="fixed top-0 left-64 right-0 h-16 bg-white/85 backdrop-blur-2xl border-b border-black/[0.07] z-40 px-4 sm:px-6 flex items-center justify-between gap-3 shadow-[0_1px_8px_rgba(17,19,24,0.02)]">
+        {/* Left: Screen Title & Regions (Guaranteed Full Visibility, Zero Shrink) */}
+        <div className="flex items-center gap-2.5 shrink-0 min-w-max">
           <h1
-            className="text-[13px] sm:text-[14px] font-semibold text-[#111318] tracking-tight truncate"
+            className="text-[14px] sm:text-[15px] font-semibold text-[#111318] tracking-tight whitespace-nowrap"
             title={screenTitle}
           >
             {screenTitle}
@@ -368,28 +389,28 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Center: DYNAMIC TOTAL MONEY & COST CUTTING CLUSTER */}
         <div className="flex items-center justify-center gap-1.5 sm:gap-2 shrink-0">
-          {/* Spend */}
-          <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-well border border-black/[0.06] text-xs font-sans shrink-0">
+          {/* Spend (Shown on large desktop screens where space permits) */}
+          <div className="hidden 2xl:flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-well border border-black/[0.06] text-xs font-sans shrink-0">
             <span className="text-[10px] text-[#767D8C] uppercase tracking-wider font-medium">Spend:</span>
             <span className="font-semibold text-[#111318] tabular-nums">{formatINR(currentSpendInr)}</span>
           </div>
 
-          {/* Dynamic Cost Cutting Pill (Clean Minimal Indicator) */}
+          {/* Dynamic Cost Cutting Pill (Clean Minimal Indicator, Always Visible) */}
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg status-green text-xs font-sans font-semibold shrink-0 shadow-xs tabular-nums">
-            <span className="text-[10px] uppercase tracking-wider opacity-90">Cost Cut:</span>
+            <span className="hidden sm:inline text-[10px] uppercase tracking-wider opacity-90">Cost Cut:</span>
             <span>↓ {formatINR(acceptedSavingsInr)}</span>
-            <span className="opacity-80">(-{acceptedSavingsPct}%)</span>
+            <span className="hidden md:inline opacity-80 font-normal">(-{acceptedSavingsPct}%)</span>
           </div>
 
-          {/* Projected Run-Rate */}
-          <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-well border border-black/[0.06] text-xs font-sans shrink-0">
+          {/* Projected Run-Rate (Shown on ultra-wide screens; also always visible in sidebar) */}
+          <div className="hidden min-[1680px]:flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-well border border-black/[0.06] text-xs font-sans shrink-0">
             <span className="text-[10px] text-[#767D8C] uppercase tracking-wider font-medium">Projected:</span>
             <span className="font-semibold text-[#111318] tabular-nums">{formatINR(projectedSpendInr)}</span>
           </div>
 
           {/* Unclaimed Pipeline */}
           {totalPotentialSavingsInr > acceptedSavingsInr && (
-            <div className="hidden 2xl:flex items-center gap-1 px-2 py-1 rounded-lg status-yellow text-[11px] font-sans font-medium shrink-0 tabular-nums">
+            <div className="hidden min-[1800px]:flex items-center gap-1 px-2 py-1 rounded-lg status-yellow text-[11px] font-sans font-medium shrink-0 tabular-nums">
               <span>₹{Math.round((totalPotentialSavingsInr - acceptedSavingsInr) / 1000)}k Unclaimed</span>
             </div>
           )}
@@ -410,7 +431,7 @@ export const Header: React.FC<HeaderProps> = ({
               title="Gemini LLM Deployment Health & Telemetry"
             >
               <span
-                className={`w-2 h-2 rounded-full ${
+                className={`w-2 h-2 rounded-full shrink-0 ${
                   isCheckingLLM
                     ? 'bg-amber-400 animate-pulse'
                     : llmHealth?.live_call_success
@@ -419,11 +440,16 @@ export const Header: React.FC<HeaderProps> = ({
                 }`}
               />
               <span className="hidden sm:inline">
-                {isCheckingLLM
-                  ? 'Checking LLM...'
-                  : llmHealth?.active_model
-                  ? llmHealth.active_model
-                  : 'Gemini LLM'}
+                {isCheckingLLM ? (
+                  'Checking...'
+                ) : (
+                  <>
+                    <span className="2xl:hidden">Gemini</span>
+                    <span className="hidden 2xl:inline">
+                      {llmHealth?.active_model ? llmHealth.active_model.replace(/^models\//, '') : 'Gemini LLM'}
+                    </span>
+                  </>
+                )}
               </span>
               <span className="sm:hidden">LLM</span>
             </button>
@@ -496,12 +522,13 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             )}
           </div>
+
           {/* Copilot Popup Toggle */}
           {onToggleChatbotPopup && (
             <button
               type="button"
               onClick={onToggleChatbotPopup}
-              className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold font-sans flex items-center gap-1.5 transition-all cursor-pointer ${
+              className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold font-sans flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
                 isChatbotPopupOpen
                   ? 'bg-[#111318] text-white shadow-xs'
                   : 'glass-well hover:bg-black/[0.08] text-[#111318] border border-black/[0.08]'
@@ -515,9 +542,11 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               type="button"
               onClick={onBulkAcceptLowRisk}
-              className="hidden xl:inline-flex px-3 py-1.5 rounded-lg status-green hover:bg-[#236B52]/18 text-xs font-semibold transition-all cursor-pointer"
+              className="hidden xl:inline-flex px-2.5 sm:px-3 py-1.5 rounded-lg status-green hover:bg-[#236B52]/18 text-xs font-semibold transition-all cursor-pointer shrink-0"
+              title="Bulk approve all pending low-risk recommendations"
             >
-              Approve Low-Risk ({pendingLowRiskCount})
+              <span className="hidden 2xl:inline">Approve Low-Risk</span>
+              <span className="2xl:hidden">Approve</span> ({pendingLowRiskCount})
             </button>
           )}
 
@@ -530,7 +559,7 @@ export const Header: React.FC<HeaderProps> = ({
                 onOpenExportModal();
               }
             }}
-            className="hidden lg:inline-flex px-2.5 sm:px-3 py-1.5 rounded-lg glass-well hover:bg-black/[0.08] text-xs font-semibold text-[#111318] transition-all cursor-pointer border border-black/[0.08]"
+            className="hidden xl:inline-flex px-2.5 sm:px-3 py-1.5 rounded-lg glass-well hover:bg-black/[0.08] text-xs font-semibold text-[#111318] transition-all cursor-pointer border border-black/[0.08] shrink-0"
           >
             Export CSV
           </button>
@@ -539,9 +568,10 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               type="button"
               onClick={onOpenExportModal}
-              className="px-3 py-1.5 rounded-lg bg-[#111318] hover:bg-[#232730] text-white text-xs font-semibold transition-all shadow-xs cursor-pointer"
+              className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-[#111318] hover:bg-[#232730] text-white text-xs font-semibold transition-all shadow-xs cursor-pointer shrink-0"
             >
-              Terraform &amp; CLI
+              <span className="hidden sm:inline">Terraform &amp; CLI</span>
+              <span className="sm:hidden">Terraform</span>
             </button>
           )}
         </div>
