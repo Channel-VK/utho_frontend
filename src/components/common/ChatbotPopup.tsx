@@ -304,7 +304,7 @@ export const ChatbotPopup: React.FC<ChatbotPopupProps> = ({
               </div>
 
               <div
-                className={`p-3 rounded-xl max-w-[92%] leading-relaxed ${
+                className={`p-3 rounded-xl max-w-[92%] min-w-0 leading-relaxed ${
                   isUser
                     ? 'bg-[#111318] text-white shadow-xs'
                     : 'bg-white border border-black/[0.08] text-[#111318] shadow-xs'

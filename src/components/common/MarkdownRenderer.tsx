@@ -20,7 +20,7 @@ function extractText(node: React.ReactNode): string {
   if (typeof node === 'string') return node;
   if (typeof node === 'number') return String(node);
   if (Array.isArray(node)) return node.map(extractText).join('');
-  if (React.isValidElement(node) && node.props && (node.props as { children?: React.ReactNode }).children) {
+  if (React.isValidElement(node) && (node.props as { children?: React.ReactNode })?.children) {
     return extractText((node.props as { children?: React.ReactNode }).children);
   }
   return '';
@@ -30,21 +30,42 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ code, language, isUser = false })
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
+    let success = false;
     try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
+      if (navigator?.clipboard?.writeText) {
         await navigator.clipboard.writeText(code);
-      } else {
+        success = true;
+      }
+    } catch {
+      // Clipboard writeText rejected (e.g. non-secure HTTP origin or permissions)
+      success = false;
+    }
+
+    if (!success) {
+      try {
         const textarea = document.createElement('textarea');
         textarea.value = code;
+        textarea.setAttribute('readonly', '');
+        textarea.style.position = 'fixed';
+        textarea.style.left = '-9999px';
+        textarea.style.top = '0';
+        textarea.style.opacity = '0';
         document.body.appendChild(textarea);
+        textarea.focus();
         textarea.select();
-        document.execCommand('copy');
+        const res = document.execCommand('copy');
         document.body.removeChild(textarea);
+        if (res) {
+          success = true;
+        }
+      } catch {
+        success = false;
       }
+    }
+
+    if (success) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // ignore
     }
   };
 
@@ -109,123 +130,138 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isU
   }
 
   return (
-    <div className={`markdown-content text-xs leading-relaxed space-y-1.5 ${isUser ? 'text-white' : 'text-[#111318]'}`}>
+    <div
+      className={`markdown-content text-xs leading-relaxed break-words [overflow-wrap:anywhere] ${
+        isUser ? 'text-white' : 'text-[#111318]'
+      }`}
+    >
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkBreaks]}
         components={{
-          h1: ({ children }) => (
+          h1: ({ children, node: _node, ...rest }) => (
             <h1
-              className={`text-base font-bold my-2.5 pb-1 border-b tracking-tight ${
+              className={`text-base font-bold my-2 pb-1 border-b tracking-tight ${
                 isUser ? 'text-white border-white/20' : 'text-[#111318] border-black/[0.08]'
               }`}
+              {...rest}
             >
               {children}
             </h1>
           ),
-          h2: ({ children }) => (
+          h2: ({ children, node: _node, ...rest }) => (
             <h2
-              className={`text-sm font-bold my-2 tracking-tight ${
+              className={`text-[15px] font-bold my-2 tracking-tight ${
                 isUser ? 'text-white' : 'text-[#111318]'
               }`}
+              {...rest}
             >
               {children}
             </h2>
           ),
-          h3: ({ children }) => (
+          h3: ({ children, node: _node, ...rest }) => (
             <h3
-              className={`text-xs font-semibold my-1.5 tracking-tight ${
+              className={`text-[13px] font-bold my-1.5 tracking-tight ${
                 isUser ? 'text-white' : 'text-[#111318]'
               }`}
+              {...rest}
             >
               {children}
             </h3>
           ),
-          h4: ({ children }) => (
+          h4: ({ children, node: _node, ...rest }) => (
             <h4
-              className={`text-xs font-semibold my-1 ${
+              className={`text-xs font-bold my-1 tracking-tight ${
                 isUser ? 'text-white/95' : 'text-[#111318]'
               }`}
+              {...rest}
             >
               {children}
             </h4>
           ),
-          p: ({ children }) => (
-            <p className="my-1.5 first:mt-0 last:mb-0 leading-relaxed text-xs">
+          p: ({ children, node: _node, ...rest }) => (
+            <p className="my-1.5 first:mt-0 last:mb-0 leading-relaxed text-xs" {...rest}>
               {children}
             </p>
           ),
-          ul: ({ children }) => (
+          ul: ({ children, node: _node, ...rest }) => (
             <ul
-              className={`my-1.5 ml-4 list-disc space-y-1 ${
+              className={`my-1.5 pl-4 list-disc space-y-1 ${
                 isUser ? 'marker:text-white/70' : 'marker:text-[#767D8C]'
               }`}
+              {...rest}
             >
               {children}
             </ul>
           ),
-          ol: ({ children }) => (
+          ol: ({ children, node: _node, ...rest }) => (
             <ol
-              className={`my-1.5 ml-4 list-decimal space-y-1 ${
+              className={`my-1.5 pl-4 list-decimal space-y-1 ${
                 isUser ? 'marker:text-white/70' : 'marker:text-[#767D8C]'
               }`}
+              {...rest}
             >
               {children}
             </ol>
           ),
-          li: ({ children }) => (
-            <li className="leading-relaxed text-xs my-0.5">
+          li: ({ children, node: _node, ...rest }) => (
+            <li className="leading-relaxed text-xs my-0.5" {...rest}>
               {children}
             </li>
           ),
-          strong: ({ children }) => (
-            <strong className={`font-semibold ${isUser ? 'text-white' : 'text-[#111318]'}`}>
+          strong: ({ children, node: _node, ...rest }) => (
+            <strong className={`font-semibold ${isUser ? 'text-white' : 'text-[#111318]'}`} {...rest}>
               {children}
             </strong>
           ),
-          em: ({ children }) => (
-            <em className="italic">{children}</em>
+          em: ({ children, node: _node, ...rest }) => (
+            <em className="italic" {...rest}>
+              {children}
+            </em>
           ),
-          blockquote: ({ children }) => (
+          blockquote: ({ children, node: _node, ...rest }) => (
             <blockquote
               className={`my-2 pl-3 border-l-2 text-xs italic ${
                 isUser ? 'border-white/40 text-white/80' : 'border-[#111318]/30 text-[#4A505C]'
               }`}
+              {...rest}
             >
               {children}
             </blockquote>
           ),
-          table: ({ children }) => (
+          table: ({ children, node: _node, ...rest }) => (
             <div
               className={`overflow-x-auto my-2 rounded-lg border ${
                 isUser ? 'border-white/15' : 'border-black/[0.08]'
               }`}
             >
-              <table className="w-full text-left text-xs border-collapse">
+              <table className="w-full text-left text-xs border-collapse" {...rest}>
                 {children}
               </table>
             </div>
           ),
-          th: ({ children }) => (
+          th: ({ children, node: _node, ...rest }) => (
             <th
               className={`px-2.5 py-1.5 text-[11px] font-semibold border-b ${
                 isUser
                   ? 'bg-white/10 text-white border-white/15'
                   : 'bg-black/[0.04] text-[#111318] border-black/[0.08]'
               }`}
+              {...rest}
             >
               {children}
             </th>
           ),
-          td: ({ children }) => (
+          td: ({ children, node: _node, ...rest }) => (
             <td
               className={`px-2.5 py-1.5 text-[11px] border-b ${
                 isUser ? 'border-white/10 text-white/90' : 'border-black/[0.05] text-[#111318]'
               }`}
+              {...rest}
             >
               {children}
             </td>
           ),
-          a: ({ href, children }) => (
+          a: ({ href, children, node: _node, ...rest }) => (
             <a
               href={href}
               target="_blank"
@@ -233,41 +269,45 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isU
               className={`underline underline-offset-2 ${
                 isUser ? 'text-blue-300 hover:text-blue-200' : 'text-[#236B52] hover:text-[#111318]'
               } transition-colors`}
+              {...rest}
             >
               {children}
             </a>
           ),
-          hr: () => (
+          hr: ({ node: _node, ...rest }) => (
             <hr
               className={`my-2.5 border-t ${
                 isUser ? 'border-white/15' : 'border-black/[0.08]'
               }`}
+              {...rest}
             />
           ),
-          code: ({ children, ...props }) => (
+          code: ({ children, className: codeClassName, node: _node, ...rest }) => (
             <code
-              className={`px-1.5 py-0.5 rounded text-[11px] font-mono leading-none ${
+              className={`px-1.5 py-0.5 rounded text-[11px] font-mono font-medium ${
                 isUser
                   ? 'bg-white/15 text-white border border-white/20'
                   : 'bg-black/[0.06] text-[#111318] border border-black/[0.08]'
-              }`}
-              {...props}
+              } ${codeClassName || ''}`}
+              {...rest}
             >
               {children}
             </code>
           ),
           pre: ({ children }) => {
-            const codeElement = React.isValidElement(children) ? children : null;
-            const codeContent = codeElement?.props && (codeElement.props as { children?: React.ReactNode }).children
-              ? extractText((codeElement.props as { children?: React.ReactNode }).children).replace(/\n$/, '')
-              : extractText(children).replace(/\n$/, '');
+            const child = Array.isArray(children) ? children[0] : children;
+            const codeElement = React.isValidElement(child) ? child : null;
+            const rawCode = codeElement?.props && (codeElement.props as { children?: React.ReactNode })?.children
+              ? extractText((codeElement.props as { children?: React.ReactNode }).children)
+              : extractText(children);
+            const code = rawCode.replace(/\n$/, '');
             const className = (codeElement?.props as { className?: string })?.className || '';
             const match = /language-(\w+)/.exec(className);
             const language = match ? match[1] : '';
 
             return (
               <CodeBlock
-                code={codeContent}
+                code={code}
                 language={language}
                 isUser={isUser}
               />

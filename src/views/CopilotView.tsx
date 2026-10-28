@@ -313,7 +313,7 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
 
                 {/* Bubble Container */}
                 <div
-                  className={`p-4 rounded-2xl max-w-[90%] text-xs leading-relaxed ${
+                  className={`p-4 rounded-2xl max-w-[90%] min-w-0 text-xs leading-relaxed ${
                     isUser
                       ? 'bg-[#111318] text-white shadow-xs'
                       : 'glass-well text-[#111318] border border-black/[0.06]'
