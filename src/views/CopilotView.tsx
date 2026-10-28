@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { apiClient } from '../api/client';
 import type { ChatMessageItem } from '../types/api';
 import { formatINR } from '../utils/format';
+import { MarkdownRenderer } from '../components/common/MarkdownRenderer';
 
 interface CopilotViewProps {
   isAIConnected?: boolean;
@@ -318,7 +319,10 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
                       : 'glass-well text-[#111318] border border-black/[0.06]'
                   }`}
                 >
-                  <p className="whitespace-pre-wrap">{typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content, null, 2)}</p>
+                  <MarkdownRenderer
+                    content={typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content, null, 2)}
+                    isUser={isUser}
+                  />
 
                   {/* Structured Tool Data Card */}
                   {msg.data && typeof msg.data === 'object' && Object.keys(msg.data).length > 0 && msg.tool !== 'conversational_greeting' && (

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { apiClient } from '../../api/client';
 import type { ChatMessageItem } from '../../types/api';
 import { formatINR } from '../../utils/format';
+import { MarkdownRenderer } from './MarkdownRenderer';
 
 interface ChatbotPopupProps {
   isOpen: boolean;
@@ -309,7 +310,10 @@ export const ChatbotPopup: React.FC<ChatbotPopupProps> = ({
                     : 'bg-white border border-black/[0.08] text-[#111318] shadow-xs'
                 }`}
               >
-                <p className="whitespace-pre-wrap">{typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content, null, 2)}</p>
+                <MarkdownRenderer
+                  content={typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content, null, 2)}
+                  isUser={isUser}
+                />
 
                 {msg.data && typeof msg.data === 'object' && Object.keys(msg.data).length > 0 && msg.tool !== 'conversational_greeting' && (
                   <div className="mt-2.5 pt-2.5 border-t border-black/[0.08] space-y-2">
