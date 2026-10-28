@@ -373,7 +373,7 @@ export const Header: React.FC<HeaderProps> = ({
       </aside>
 
       {/* TOP STICKY GLASS CONTEXT BAR (ZERO-COLLISION RESPONSIVE FLEX LAYOUT) */}
-      <header className="fixed top-0 left-64 right-0 h-16 bg-white/85 backdrop-blur-2xl border-b border-black/[0.07] z-40 px-4 sm:px-6 flex items-center justify-between gap-3 shadow-[0_1px_8px_rgba(17,19,24,0.02)]">
+      <header className="fixed top-0 left-64 right-0 h-16 bg-white/85 backdrop-blur-2xl border-b border-black/[0.07] z-40 px-4 sm:px-6 flex items-center justify-between gap-2.5 sm:gap-4 shadow-[0_1px_8px_rgba(17,19,24,0.02)]">
         {/* Left: Screen Title & Regions (Guaranteed Full Visibility, Zero Shrink) */}
         <div className="flex items-center gap-2.5 shrink-0 min-w-max">
           <h1
@@ -382,35 +382,38 @@ export const Header: React.FC<HeaderProps> = ({
           >
             {screenTitle}
           </h1>
-          <span className="hidden 2xl:inline-flex px-2 py-0.5 rounded-md glass-pill-neutral text-[10px] font-sans font-medium shrink-0">
+          <span className="hidden min-[1750px]:inline-flex px-2 py-0.5 rounded-md glass-pill-neutral text-[10px] font-sans font-medium shrink-0">
             Noida · BLR · BOM
           </span>
         </div>
 
         {/* Center: DYNAMIC TOTAL MONEY & COST CUTTING CLUSTER */}
-        <div className="flex items-center justify-center gap-1.5 sm:gap-2 shrink-0">
-          {/* Spend (Shown on large desktop screens where space permits) */}
-          <div className="hidden 2xl:flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-well border border-black/[0.06] text-xs font-sans shrink-0">
+        <div className="hidden md:flex items-center justify-center gap-1.5 sm:gap-2 shrink-0">
+          {/* Dynamic Cost Cutting Pill (Clean Minimal Hero Indicator, Always Visible on md+) */}
+          <div
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg status-green text-xs font-sans font-semibold shrink-0 shadow-xs tabular-nums"
+            title={`Accepted monthly savings: ₹${acceptedSavingsInr.toLocaleString('en-IN')}`}
+          >
+            <span className="hidden xl:inline text-[10px] uppercase tracking-wider opacity-90">Cost Cut:</span>
+            <span>↓ {formatINR(acceptedSavingsInr)}</span>
+            <span className="hidden min-[1400px]:inline opacity-80 font-normal">(-{acceptedSavingsPct}%)</span>
+          </div>
+
+          {/* Spend (Shown on wide desktop screens where space permits >= 1650px) */}
+          <div className="hidden min-[1650px]:flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-well border border-black/[0.06] text-xs font-sans shrink-0">
             <span className="text-[10px] text-[#767D8C] uppercase tracking-wider font-medium">Spend:</span>
             <span className="font-semibold text-[#111318] tabular-nums">{formatINR(currentSpendInr)}</span>
           </div>
 
-          {/* Dynamic Cost Cutting Pill (Clean Minimal Indicator, Always Visible) */}
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg status-green text-xs font-sans font-semibold shrink-0 shadow-xs tabular-nums">
-            <span className="hidden sm:inline text-[10px] uppercase tracking-wider opacity-90">Cost Cut:</span>
-            <span>↓ {formatINR(acceptedSavingsInr)}</span>
-            <span className="hidden md:inline opacity-80 font-normal">(-{acceptedSavingsPct}%)</span>
-          </div>
-
-          {/* Projected Run-Rate (Shown on ultra-wide screens; also always visible in sidebar) */}
-          <div className="hidden min-[1680px]:flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-well border border-black/[0.06] text-xs font-sans shrink-0">
+          {/* Projected Run-Rate (Shown on ultra-wide screens >= 1800px; also always visible in sidebar) */}
+          <div className="hidden min-[1800px]:flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-well border border-black/[0.06] text-xs font-sans shrink-0">
             <span className="text-[10px] text-[#767D8C] uppercase tracking-wider font-medium">Projected:</span>
             <span className="font-semibold text-[#111318] tabular-nums">{formatINR(projectedSpendInr)}</span>
           </div>
 
-          {/* Unclaimed Pipeline */}
+          {/* Unclaimed Pipeline (Shown on ultra-wide screens >= 1900px) */}
           {totalPotentialSavingsInr > acceptedSavingsInr && (
-            <div className="hidden min-[1800px]:flex items-center gap-1 px-2 py-1 rounded-lg status-yellow text-[11px] font-sans font-medium shrink-0 tabular-nums">
+            <div className="hidden min-[1900px]:flex items-center gap-1 px-2 py-1 rounded-lg status-yellow text-[11px] font-sans font-medium shrink-0 tabular-nums">
               <span>₹{Math.round((totalPotentialSavingsInr - acceptedSavingsInr) / 1000)}k Unclaimed</span>
             </div>
           )}
@@ -423,7 +426,7 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               type="button"
               onClick={() => setShowLLMDropdown((prev) => !prev)}
-              className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold font-sans flex items-center gap-1.5 transition-all cursor-pointer border ${
+              className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold font-sans flex items-center gap-1.5 transition-all cursor-pointer border shrink-0 ${
                 llmHealth?.live_call_success
                   ? 'bg-white hover:bg-black/[0.04] text-[#111318] border-black/[0.08]'
                   : 'bg-[#FFF7ED] text-[#C2410C] border-[#FDBA74]'
@@ -444,9 +447,9 @@ export const Header: React.FC<HeaderProps> = ({
                   'Checking...'
                 ) : (
                   <>
-                    <span className="2xl:hidden">Gemini</span>
-                    <span className="hidden 2xl:inline">
-                      {llmHealth?.active_model ? llmHealth.active_model.replace(/^models\//, '') : 'Gemini LLM'}
+                    <span className="min-[1750px]:hidden">Gemini</span>
+                    <span className="hidden min-[1750px]:inline">
+                      {llmHealth?.active_model ? llmHealth.active_model.replace(/^models\//, '') : 'Gemini'}
                     </span>
                   </>
                 )}
@@ -542,11 +545,11 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               type="button"
               onClick={onBulkAcceptLowRisk}
-              className="hidden xl:inline-flex px-2.5 sm:px-3 py-1.5 rounded-lg status-green hover:bg-[#236B52]/18 text-xs font-semibold transition-all cursor-pointer shrink-0"
+              className="hidden sm:inline-flex px-2.5 sm:px-3 py-1.5 rounded-lg status-green hover:bg-[#236B52]/18 text-xs font-semibold transition-all cursor-pointer shrink-0"
               title="Bulk approve all pending low-risk recommendations"
             >
-              <span className="hidden 2xl:inline">Approve Low-Risk</span>
-              <span className="2xl:hidden">Approve</span> ({pendingLowRiskCount})
+              <span className="hidden min-[1440px]:inline">Approve Low-Risk</span>
+              <span className="min-[1440px]:hidden">Approve</span> ({pendingLowRiskCount})
             </button>
           )}
 
@@ -559,7 +562,8 @@ export const Header: React.FC<HeaderProps> = ({
                 onOpenExportModal();
               }
             }}
-            className="hidden xl:inline-flex px-2.5 sm:px-3 py-1.5 rounded-lg glass-well hover:bg-black/[0.08] text-xs font-semibold text-[#111318] transition-all cursor-pointer border border-black/[0.08] shrink-0"
+            className="hidden min-[1366px]:inline-flex px-2.5 sm:px-3 py-1.5 rounded-lg glass-well hover:bg-black/[0.08] text-xs font-semibold text-[#111318] transition-all cursor-pointer border border-black/[0.08] shrink-0"
+            title="Export full FinOps CSV audit report"
           >
             Export CSV
           </button>
@@ -569,6 +573,7 @@ export const Header: React.FC<HeaderProps> = ({
               type="button"
               onClick={onOpenExportModal}
               className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-[#111318] hover:bg-[#232730] text-white text-xs font-semibold transition-all shadow-xs cursor-pointer shrink-0"
+              title="Generate automated Terraform HCL and Utho CLI remediation scripts"
             >
               <span className="hidden sm:inline">Terraform &amp; CLI</span>
               <span className="sm:hidden">Terraform</span>
